@@ -1,0 +1,10 @@
+{
+    "pip": {
+        "linux": [
+            "pymupdf"
+        ],
+        "win32": [
+            "pymupdf"
+        ]
+    }
+}
