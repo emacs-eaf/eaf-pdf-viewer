@@ -574,7 +574,7 @@ class PdfViewerWidget(QWidget):
         # Simple string comparation.
         if (get_emacs_var("eaf-pdf-default-zoom") != 1.0):
             self.read_mode = "fit_to_customize"
-            self.scale = get_emacs_var("eaf-pdf-default-zoom")
+            self.scale = float(get_emacs_var("eaf-pdf-default-zoom"))
         self.horizontal_offset = 0
 
         # Inverted mode.
