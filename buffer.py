@@ -26,7 +26,7 @@ from PyQt5.QtGui import QPainter
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
-from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_var, get_emacs_var, get_emacs_config_dir
+from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_var, get_emacs_config_dir
 import fitz
 import time
 import random
@@ -44,7 +44,35 @@ class AppBuffer(Buffer):
         self.add_widget(PdfViewerWidget(url, QColor(get_emacs_var("eaf-buffer-background-color")), buffer_id))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
 
+        self.record_open_history()
+
         self.build_all_methods(self.buffer_widget)
+
+    def record_open_history(self):
+        if get_emacs_var("eaf-pdf-store-history"):
+            # Make sure file created.
+            history_file = os.path.join(get_emacs_config_dir(), "pdf", "history", "log.txt")
+            touch(history_file)
+
+            # Read history.
+            lines = []
+            with open(history_file, "r") as f:
+                lines = f.readlines()
+
+            # Filter empty line and \n char that end of filename.
+            lines = list(filter(lambda line: line != "\n", lines))
+            lines = list(map(lambda line: line.replace("\n", ""), lines))
+
+            # Make sure current file is at top of history file.
+            if self.url in lines:
+                lines.remove(self.url)
+            lines.insert(0, self.url)
+
+            # Record history.
+            with open(history_file, "w") as f:
+                for line in lines:
+                    f.write(line)
+                    f.write("\n")
 
     def destroy_buffer(self):
         if self.delete_temp_file:
