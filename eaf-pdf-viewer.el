@@ -325,7 +325,7 @@ This function works best if paired with a fuzzy search package."
       (let* ((file-md5 (eaf-get-file-md5 file))
              (basename (file-name-base file))
              (pdf-file (format "/tmp/%s.pdf" file-md5))
-             (pdf-argument (format "%s.%s_office_pdf" basename (eaf-get-file-name-extension file))))
+             (pdf-argument (format "%s.%s_office_pdf" basename (file-name-extension file))))
         (if (file-exists-p pdf-file)
             (eaf-open pdf-file "pdf-viewer" pdf-argument)
           (message "Converting %s to PDF, EAF will start shortly..." file)
