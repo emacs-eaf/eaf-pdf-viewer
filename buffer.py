@@ -35,6 +35,7 @@ import os
 import hashlib
 import json
 import platform
+import threading
 
 class AppBuffer(Buffer):
     def __init__(self, buffer_id, url, arguments):
@@ -44,7 +45,8 @@ class AppBuffer(Buffer):
         self.add_widget(PdfViewerWidget(url, QColor(get_emacs_var("eaf-buffer-background-color")), buffer_id))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
 
-        self.record_open_history()
+        # Use thread to avoid slow down open speed.
+        threading.Thread(target=self.record_open_history).start()
 
         self.build_all_methods(self.buffer_widget)
 
