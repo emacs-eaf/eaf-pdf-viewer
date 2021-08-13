@@ -5,6 +5,9 @@
         ],
         "win32": [
             "pymupdf"
+        ],
+        "darwin": [
+            "pymupdf"
         ]
     }
 }
