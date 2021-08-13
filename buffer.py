@@ -48,6 +48,10 @@ class AppBuffer(Buffer):
 
         self.build_all_methods(self.buffer_widget)
 
+        # Convert title if pdf is converted from office file.
+        if arguments.endswith("_office_pdf"):
+            self.change_title(arguments.split("_office_pdf")[0])
+
     def record_open_history(self):
         if get_emacs_var("eaf-pdf-store-history"):
             # Make sure file created.

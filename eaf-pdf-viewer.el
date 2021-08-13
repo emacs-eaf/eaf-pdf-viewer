@@ -1,4 +1,4 @@
-;;; eaf-pdf-viewer.el --- PDF Viewer
+;;; eaf-pdf-viewer.el --- PDF Viewer -*- lexical-binding: t; -*-
 
 ;; Filename: eaf-pdf-viewer.el
 ;; Description: PDF Viewer
@@ -323,11 +323,11 @@ This function works best if paired with a fuzzy search package."
   (interactive "f[EAF/office] Open Office file as PDF: ")
   (if (executable-find "libreoffice")
       (let* ((file-md5 (eaf-get-file-md5 file))
-             (file-name-base (file-name-base file))
-             (convert-file (format "/tmp/%s.pdf" file-name-base))
-             (pdf-file (format "/tmp/%s.pdf" file-md5)))
+             (basename (file-name-base file))
+             (pdf-file (format "/tmp/%s.pdf" file-md5))
+             (pdf-argument (format "%s.%s_office_pdf" basename (eaf-get-file-name-extension file))))
         (if (file-exists-p pdf-file)
-            (eaf-open pdf-file "pdf-viewer" (concat file-name-base "_office-pdf"))
+            (eaf-open pdf-file "pdf-viewer" pdf-argument)
           (message "Converting %s to PDF, EAF will start shortly..." file)
           (make-process
            :name ""
@@ -335,8 +335,9 @@ This function works best if paired with a fuzzy search package."
            :command (list "libreoffice" "--headless" "--convert-to" "pdf" (file-truename file) "--outdir" "/tmp")
            :sentinel (lambda (_ event)
                        (when (string= (substring event 0 -1) "finished")
-                         (rename-file convert-file pdf-file)
-                         (eaf-open pdf-file "pdf-viewer" (concat file-name-base "_office-pdf")))))))
+                         (rename-file (format "/tmp/%s.pdf" basename) pdf-file)
+                         (eaf-open pdf-file "pdf-viewer" pdf-argument)
+                         )))))
     (error "[EAF/office] libreoffice is required convert Office file to PDF!")))
 
 (defun eaf-get-file-md5 (file)
