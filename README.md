@@ -15,9 +15,9 @@ PDF Viewer application for the [Emacs Application Framework](https://github.com/
 
 ### Dependency List
 
-| Package        | Description             |
-| :--------      | :------                 |
-| python-pymupdf | PDF rendering engine    |
+| Package        | Description              |
+| :--------      | :------                  |
+| python-pymupdf | PDF rendering engine     |
 | libreoffice    | Convert doc file to pdf, optional |
 
 ### The keybinding of EAF PDF Viewer.
@@ -69,4 +69,3 @@ PDF Viewer application for the [Emacs Application Framework](https://github.com/
 | `K` | select_right_tab |
 | `o` | eaf-pdf-outline |
 | `T` | toggle_trim_white_margin |
-
