@@ -13,6 +13,23 @@ PDF Viewer application for the [Emacs Application Framework](https://github.com/
 (require 'eaf-pdf-viewer)
 ```
 
+### LaTeX config
+
+```Elisp
+(add-to-list 'TeX-command-list '("XeLaTeX" "%`xelatex --synctex=1%(mode)%' %t" TeX-run-TeX nil t))
+(add-to-list 'TeX-view-program-list '("eaf" eaf-pdf-synctex-forward-view))
+(add-to-list 'TeX-view-program-selection '(output-pdf "eaf"))
+
+```
+
+Double click the left button to edit backward.
+
+<p align="center">
+  <img width="800" src="./latex_screenshot.gif">
+</p>
+
+
+
 ### Dependency List
 
 | Package        | Description              |

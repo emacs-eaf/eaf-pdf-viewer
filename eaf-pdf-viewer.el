@@ -344,6 +344,91 @@ This function works best if paired with a fuzzy search package."
   "Get the MD5 value of a specified FILE."
   (car (split-string (shell-command-to-string (format "md5sum '%s'" (file-truename file))) " ")))
 
+
+;; syntex support
+
+(defvar eaf-pdf-synctex-path "synctex"
+  "Path of synctex tool.")
+
+(defvar eaf-pdf-synctex-file-directory-function 'eaf-pdf--get-synctex-file-directory
+  "Function to get the *.synctex.gz file directory, look `eaf-pdf--get-synctex-file-directory'")
+
+(defun eaf-pdf--get-synctex-file-directory (pdf-file)
+  "Get *.synctex.gz file directory through `pdf-file'"
+  (file-name-directory (directory-file-name pdf-file)))
+
+(defun eaf-pdf--find-buffer (pdf-url)
+  "Find opened buffer by `pdf-url'"
+  (let ((opened-buffer))
+    (catch 'found-match-buffer
+      (dolist (buffer (buffer-list))
+        (set-buffer buffer)
+        (when (equal major-mode 'eaf-mode)
+          (when (and (string= eaf--buffer-url pdf-url)
+                     (string= eaf--buffer-app-name "pdf-viewer"))
+            (setq opened-buffer buffer)
+            (throw 'found-match-buffer t)))))
+    opened-buffer))
+
+(defun eaf-pdf--get-page-num (tex-file line-num pdf-file)
+  "Use synctex tool to get the page num of `pdf-file' through `tex-file' and `line-num'."
+  (if (executable-find eaf-pdf-synctex-path)
+      (let ((synctex-result)
+            (page-num 1)
+            (synctex-view-command (format "%s view -i %s:1:%s -o %s"
+                                          eaf-pdf-synctex-path line-num tex-file pdf-file)))
+        (setq synctex-result (shell-command-to-string synctex-view-command))
+        (if (and synctex-result (string-match "Page:\\([0-9]+\\)\n" synctex-result))
+            (setq page-num  (string-to-number (match-string 1 synctex-result)))
+          (message "Execute %s failed!" synctex-view-command))
+        page-num)
+    (message "Can not found %s" eaf-pdf-synctex-path)))
+
+(defun eaf-pdf--get-tex-and-line (pdf-file page-num x y)
+  "Use synctex tool to get tex file and line num through `page-file', `page-num', `x' and `y'."
+  (if (executable-find eaf-pdf-synctex-path)
+      (let ((synctex-result)
+            (page-num 1)
+            (synctex-edit-command (format "%s edit -o %s:%s:%s:%s -d %s"
+                                          eaf-pdf-synctex-path page-num x y pdf-file
+                                          (funcall eaf-pdf-synctex-file-directory-function pdf-file)))
+            (tex-file nil)
+            (line-num nil))
+        (setq synctex-result (shell-command-to-string synctex-edit-command))
+        (if (and synctex-result (string-match "Input:\\(.*\\)\nLine:\\([0-9]+\\)\n" synctex-result))
+            (setq tex-file  (expand-file-name (match-string 1 synctex-result))
+                  line-num (string-to-number (match-string 2 synctex-result)))
+          (message "Execute %s failed!" synctex-view-command))
+        `(,tex-file ,line-num))
+    (message "Can not found %s" eaf-pdf-synctex-path)
+    nil))
+
+(defun eaf-pdf-synctex-forward-view()
+  "View the PDF file of Tex synchronously."
+  (let* ((pdf-url (expand-file-name (TeX-active-master (TeX-output-extension))))
+         (tex-buffer (window-buffer (minibuffer-selected-window)))
+         (tex-file (buffer-file-name tex-buffer))
+         (line-num (progn (set-buffer tex-buffer) (line-number-at-pos)))
+         (opened-buffer (eaf-pdf--find-buffer pdf-url))
+         (page-num (eaf-pdf--get-page-num tex-file line-num pdf-url)))
+    (if (not opened-buffer)
+        (eaf-open pdf-url "pdf-viewer" (format "synctex_page_num=%s" page-num))
+      (pop-to-buffer opened-buffer)
+      (eaf-call-sync "call_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num)))))
+
+(defun eaf-pdf-synctex-backward-edit(pdf-file page-num x y)
+  "Edit the Tex file corresponding to (`page-num', `x' , `y') of the `pdf-file'."
+  (let* ((tex-and-line (eaf-pdf--get-tex-and-line pdf-file page-num x y))
+         (tex-file (nth 0 tex-and-line))
+         (line-num (nth 1 tex-and-line)))
+    (when (and tex-file line-num)
+      (let ((buffer (get-buffer (file-name-nondirectory tex-file))))
+        (if buffer
+            (switch-to-buffer-other-window buffer)
+          (find-file-other-window tex-file))
+        (goto-line line-num)))))
+
+
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))
 
 (setq eaf-pdf-viewer-module-path (concat (file-name-directory load-file-name) "buffer.py"))
