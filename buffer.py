@@ -42,7 +42,12 @@ class AppBuffer(Buffer):
         Buffer.__init__(self, buffer_id, url, arguments, False)
 
         self.delete_temp_file = arguments == "temp_pdf_file"
-        self.add_widget(PdfViewerWidget(url, QColor(get_emacs_var("eaf-buffer-background-color")), buffer_id))
+
+        self.synctex_page_num = None
+        if arguments.startswith("synctex_page_num"):
+            self.synctex_page_num = int(arguments.split("=")[1])
+
+        self.add_widget(PdfViewerWidget(url, QColor(get_emacs_var("eaf-buffer-background-color")), buffer_id, self.synctex_page_num))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
 
         # Use thread to avoid slow down open speed.
@@ -129,7 +134,8 @@ class AppBuffer(Buffer):
             (scroll_offset, scale, read_mode, inverted_mode) = session_data.split(":")
         else:
             (scroll_offset, scale, read_mode, inverted_mode, rotation) = session_data.split(":")
-        self.buffer_widget.scroll_offset = float(scroll_offset)
+        if not self.synctex_page_num:
+            self.buffer_widget.scroll_offset = float(scroll_offset)
         self.buffer_widget.scale = float(scale)
         self.buffer_widget.read_mode = read_mode
         self.buffer_widget.rotation = int(rotation)
@@ -579,13 +585,14 @@ class PdfViewerWidget(QWidget):
 
     translate_double_click_word = QtCore.pyqtSignal(str)
 
-    def __init__(self, url, background_color, buffer_id):
+    def __init__(self, url, background_color, buffer_id, synctex_page_num):
         super(PdfViewerWidget, self).__init__()
 
         self.url = url
         self.config_dir = get_emacs_config_dir()
         self.background_color = background_color
         self.buffer_id = buffer_id
+        self.synctex_page_num = synctex_page_num
         self.installEventFilter(self)
         self.setMouseTracking(True)
 
@@ -689,6 +696,10 @@ class PdfViewerWidget(QWidget):
 
         self.start_page_index = 0
         self.last_page_index = 0
+
+        # synctex init page
+        if self.synctex_page_num:
+            self.jump_to_page(self.synctex_page_num)
 
     @interactive
     def toggle_presentation_mode(self):
@@ -1481,6 +1492,8 @@ class PdfViewerWidget(QWidget):
             self.disable_free_text_annot_mode()
             if event.button() == Qt.RightButton:
                 self.handle_translate_word()
+            elif event.button() == Qt.LeftButton and self.synctex_page_num:
+                self.handle_synctex_backward_edit()
 
         return False
 
@@ -1519,6 +1532,11 @@ class PdfViewerWidget(QWidget):
         double_click_word = self.get_double_click_word()
         if double_click_word:
             self.translate_double_click_word.emit(double_click_word)
+
+    def handle_synctex_backward_edit(self):
+        ex, ey, page_index = self.get_cursor_absolute_position()
+        if page_index is not None:
+            eval_in_emacs("eaf-pdf-synctex-backward-edit", [self.url, page_index + 1, ex, ey])
 
 
 # utils function
