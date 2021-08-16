@@ -56,69 +56,57 @@
 ;; No need more.
 
 ;;; Customize:
-;;
-;;
-;;
-;; All of the above can customize by:
-;;      M-x customize-group RET eaf-pdf-viewer RET
-;;
 
-;;; Change log:
-;;
-;; 2021/07/20
-;;      * First released.
-;;
-
-;;; Acknowledgements:
-;;
-;;
-;;
-
-;;; TODO
-;;
-;;
-;;
-
-;;; Require
-
-
-;;; Code:
-
-(defvar eaf-pdf-outline-buffer-name "*eaf pdf outline*"
-  "The name of pdf-outline-buffer.")
-
-(defvar eaf-pdf-outline-window-configuration nil
-  "Save window configure before popup outline buffer.")
+(defgroup eaf-pdf-viewer nil
+  "The PDF viewer application of Emacs application framework."
+  :group 'eaf)
 
 (defcustom eaf-pdf-extension-list
   '("pdf" "xps" "oxps" "cbz" "epub" "fb2" "fbz")
   "The extension list of pdf application."
-  :type 'cons)
+  :type 'list
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-office-extension-list
   '("docx" "doc" "ppt" "pptx" "xlsx" "xls")
   "The extension list of office application."
-  :type 'cons)
+  :type 'list
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-store-history t
   "If it is t, the pdf file path will be stored in eaf-config-location/pdf/history/log.txt for eaf-open-pdf-from-history to use"
-  :type 'boolean)
+  :type 'boolean
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-dark-mode "follow"
-  ""
-  :type 'string)
+  "Whether to enable inverted color rendering when starting the pdf-viewer app.
+
+Possible values are
+   - \"follow\" Follow the background color of the theme of user.
+   - \"force\" Force inverted color rendering on start-up.
+   - \"ignore\" Don't do inverted rendering."
+  :type '(choice (string :tag "Force inverted color rendering." "force")                 
+                 (string :tag "Follow the background color of user's theme." "follow")
+                 (other :tag "Do normal rendering." "ignore"))
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-default-zoom 1.0
-  ""
-  :type 'float)
+  "The default zooming percentage when starting the pdf-viewer app."
+  :type 'float
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-scroll-ratio 0.05
-  ""
-  :type 'float)
+  "The ratio of the page in each step when scrolling."
+  :type 'float
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-dark-exclude-image t
-  ""
-  :type 'boolean)
+  "Don't invert images when toggling inverted color rendering.
+
+Nil means also invert images.
+Non-nil means don't invert images."
+  :type 'boolean
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-viewer-keybinding
   '(("j" . "scroll_up")
@@ -167,7 +155,45 @@
     ("o" . "eaf-pdf-outline")
     ("T" . "toggle_trim_white_margin"))
   "The keybinding of EAF PDF Viewer."
-  :type 'cons)
+  :type '(alist :key-type (string :tag "Key bindings (e.g. \"C-n\", \"<f4>\", etc.)")
+                :value-type (string :tag "Python function"))
+  :group 'eaf-pdf-viewer)
+
+;;
+;; All of the above can customize by:
+;;      M-x customize-group RET eaf-pdf-viewer RET
+;;
+
+;;; Change log:
+;;
+;; 2021/07/20
+;;      * First released.
+;; 2021/08/16
+;;      * More elaborate defcustoms
+;;      * Divide code via outline-mode
+;;
+
+;;; Acknowledgements:
+;;
+;;
+;;
+
+;;; TODO
+;;
+;;
+;;
+
+;;; Require
+
+
+;;; Code:
+
+;;;; Outline buffer & Imenu
+(defvar eaf-pdf-outline-buffer-name "*eaf pdf outline*"
+  "The name of pdf-outline-buffer.")
+
+(defvar eaf-pdf-outline-window-configuration nil
+  "Save window configure before popup outline buffer.")
 
 (define-minor-mode eaf-pdf-outline-mode
   "EAF pdf outline mode."
@@ -264,6 +290,7 @@ Just ignore them and call \"jump_page\" to PAGE-NUM."
 
 (add-hook 'eaf-pdf-viewer-hook 'eaf-pdf-imenu-setup)
 
+;;;; PDF-viewer
 (defun eaf-pdf-get-annots (page)
   "Return a map of annotations on PAGE.
 
@@ -345,7 +372,7 @@ This function works best if paired with a fuzzy search package."
   (car (split-string (shell-command-to-string (format "md5sum '%s'" (file-truename file))) " ")))
 
 
-;; syntex support
+;;;; Synctex support
 
 (defvar eaf-pdf-synctex-path "synctex"
   "Path of synctex tool.")
@@ -429,6 +456,7 @@ This function works best if paired with a fuzzy search package."
         (goto-line line-num)))))
 
 
+;;;; Register as module for EAF
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))
 
 (setq eaf-pdf-viewer-module-path (concat (file-name-directory load-file-name) "buffer.py"))
