@@ -324,7 +324,7 @@ when there is no table of contents for the buffer."
       (setq imenu--index-alist
             (let ((toc (eaf-call-sync "call_function" eaf--buffer-id "get_toc")))
               (cond ((string= toc "")
-                     (mapcar #'(lambda (page-num)
+                     (mapcar (lambda (page-num)
                                  (list (concat "Page " (number-to-string page-num)) page-num
                                        #'eaf-pdf-imenu-go-to-index
                                        nil))
@@ -334,7 +334,7 @@ when there is no table of contents for the buffer."
                                                               eaf--buffer-id
                                                               "page_total_number")))))
                     (t
-                     (mapcar #'(lambda (line)
+                     (mapcar (lambda (line)
                                  (let ((line-split (split-string line " ")))
                                    (list (string-join (butlast line-split) " ")
                                          (string-to-number (car (last line-split)))
