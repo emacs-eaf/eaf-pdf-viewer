@@ -184,23 +184,46 @@ Non-nil means don't invert images."
 ;;
 
 ;;; Require
-
+(require 'outline)
 
 ;;; Code:
-
 ;;;; Outline buffer & Imenu
+(defcustom eaf-pdf-outline-buffer-indent 4
+  "The level of indent in the Outline buffer."
+  :type 'integer
+  :group 'eaf-pdf-viewer)
+
 (defvar eaf-pdf-outline-buffer-name "*eaf pdf outline*"
   "The name of pdf-outline-buffer.")
 
 (defvar eaf-pdf-outline-window-configuration nil
   "Save window configure before popup outline buffer.")
 
-(define-minor-mode eaf-pdf-outline-mode
+(defvar eaf-pdf-outline-mode-map
+  (let ((map (make-sparse-keymap)))
+    (dotimes (i 10)
+      (define-key map (vector (+ i ?0)) 'digit-argument))
+    (define-key map "-" 'negative-argument)
+    (define-key map (kbd "p") 'previous-line)
+    (define-key map (kbd "n") 'next-line)
+    (define-key map (kbd "b") 'outline-backward-same-level)
+    (define-key map (kbd "d") 'outline-hide-subtree)
+    (define-key map (kbd "a") 'outline-show-all)
+    (define-key map (kbd "s") 'outline-show-subtree)
+    (define-key map (kbd "f") 'outline-forward-same-level)
+    (define-key map (kbd "Q") 'outline-hide-sublevels)
+    (define-key map (kbd "RET") 'eaf-pdf-outline-jump)
+    map)
+  "Keymap used in `eaf-pdf-outline-mode'.")
+
+(define-derived-mode eaf-pdf-outline-mode outline-mode "PDF Outline"
   "EAF pdf outline mode."
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "RET") 'eaf-pdf-outline-jump)
-            (define-key map (kbd "q") 'quit-window)
-            map))
+  (setq-local outline-regexp "\\( *\\).")
+  (setq-local outline-level
+              (lambda nil (1+ (/ (length (match-string 1))
+                                 eaf-pdf-outline-buffer-indent))))
+  (toggle-truncate-lines 1)
+  (setq buffer-read-only t))
 
 (defun eaf-pdf-outline ()
   "Create PDF outline."
@@ -223,7 +246,7 @@ Non-nil means don't invert images."
       (set (make-local-variable 'eaf-pdf-outline-original-buffer-name) buffer-name)
       (let ((view-read-only nil))
         (read-only-mode 1))
-      (eaf-pdf-outline-mode 1))
+      (eaf-pdf-outline-mode))
 
     ;; Popup ouline buffer.
     (pop-to-buffer eaf-pdf-outline-buffer-name)))
