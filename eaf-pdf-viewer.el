@@ -194,6 +194,10 @@ Non-nil means don't invert images."
   :type 'integer
   :group 'eaf-pdf-viewer)
 
+(defvar-local eaf-pdf-outline-pdf-document nil
+  "The PDF filename or buffer corresponding to this outline
+  buffer.")
+
 (defvar eaf-pdf-outline-window-configuration nil
   "Save window configure before popup outline buffer.")
 
@@ -202,8 +206,17 @@ Non-nil means don't invert images."
     (dotimes (i 10)
       (define-key map (vector (+ i ?0)) 'digit-argument))
     (define-key map "-" 'negative-argument)
+    ;; Navigation
     (define-key map (kbd "p") 'previous-line)
+    (define-key map (kbd "P") 'eaf-pdf-outline-view-prev)
     (define-key map (kbd "n") 'next-line)
+    (define-key map (kbd "N") 'eaf-pdf-outline-view-next)
+    (define-key map (kbd "SPC") 'eaf-pdf-outline-view-next)
+    (define-key map (kbd "RET") 'eaf-pdf-outline-jump)
+    (define-key map (kbd "o") 'eaf-pdf-outline-view)
+    (define-key map (kbd "v") 'eaf-pdf-outline-view)
+
+    ;; Outline-mode stuffs
     (define-key map (kbd "b") 'outline-backward-same-level)
     (define-key map (kbd "d") 'outline-hide-subtree)
     (define-key map (kbd "a") 'outline-show-all)
@@ -211,6 +224,7 @@ Non-nil means don't invert images."
     (define-key map (kbd "f") 'outline-forward-same-level)
     (define-key map (kbd "Q") 'outline-hide-sublevels)
     (define-key map (kbd "RET") 'eaf-pdf-outline-jump)
+    (define-key map (kbd "Q") 'hide-sublevels)
     map)
   "Keymap used in `eaf-pdf-outline-mode'.")
 
@@ -233,7 +247,7 @@ Non-nil means don't invert images."
 (defun eaf-pdf-outline ()
   "Create PDF outline."
   (interactive)
-  (let ((buffer-name (buffer-name (current-buffer)))
+  (let ((pdf-buffer (current-buffer))
         (toc (eaf-call-sync "call_function" eaf--buffer-id "get_toc"))
         (page-number (string-to-number (eaf-call-sync "call_function" eaf--buffer-id "current_page")))
         (outline-buf (get-buffer-create (eaf-pdf-outline-buffer-name (current-buffer)))))
@@ -249,10 +263,10 @@ Non-nil means don't invert images."
                           (string-to-number (car (last (split-string line " ")))))
                         (butlast (split-string (buffer-string) "\n"))))
       (goto-line (seq-count (apply-partially #'>= page-number) toc))
-      (set (make-local-variable 'eaf-pdf-outline-original-buffer-name) buffer-name)
       (let ((view-read-only nil))
         (read-only-mode 1))
-      (eaf-pdf-outline-mode))
+      (eaf-pdf-outline-mode)
+      (setq-local eaf-pdf-outline-pdf-document pdf-buffer))
 
     ;; Popup outline buffer.
     (pop-to-buffer outline-buf)))
@@ -263,13 +277,35 @@ Non-nil means don't invert images."
   (let* ((line (thing-at-point 'line))
          (page-num (replace-regexp-in-string "\n" "" (car (last (split-string line " "))))))
     ;; Jump to page.
-    (switch-to-buffer-other-window eaf-pdf-outline-original-buffer-name)
+    (switch-to-buffer-other-window eaf-pdf-outline-pdf-document)
     (eaf-call-sync "call_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num))
 
     ;; Restore window configuration before outline operation.
     (when eaf-pdf-outline-window-configuration
       (set-window-configuration eaf-pdf-outline-window-configuration)
       (setq eaf-pdf-outline-window-configuration nil))))
+
+(defun eaf-pdf-outline-view ()
+  "View the specific page."
+  (interactive)
+  (let* ((line (thing-at-point 'line))
+         (page-num (substring-no-properties (replace-regexp-in-string "\n" "" (car (last (s-split " " line)))))))
+    ;; Jump to page.
+    (eaf-call-async "call_function_with_args"
+                   (buffer-local-value 'eaf--buffer-id eaf-pdf-outline-pdf-document)
+                   "jump_to_page_with_num" (format "%s" page-num))))
+
+(defun eaf-pdf-outline-view-prev ()
+  "View the specific page in the previous line."
+  (interactive)
+  (previous-line)
+  (eaf-pdf-outline-view))
+
+(defun eaf-pdf-outline-view-next ()
+  "View the specific page in the next line."
+  (interactive)
+  (next-line)
+  (eaf-pdf-outline-view))
 
 (defun eaf-pdf-imenu-create-index-from-toc ()
   "Create an alist based on the table of contents of this buffer.
@@ -399,7 +435,6 @@ This function works best if paired with a fuzzy search package."
 (defun eaf-get-file-md5 (file)
   "Get the MD5 value of a specified FILE."
   (car (split-string (shell-command-to-string (format "md5sum '%s'" (file-truename file))) " ")))
-
 
 ;;;; Synctex support
 
