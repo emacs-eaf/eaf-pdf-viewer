@@ -275,7 +275,7 @@ Non-nil means don't invert images."
   "Jump into specific page."
   (interactive)
   (let* ((line (thing-at-point 'line))
-         (page-num (replace-regexp-in-string "\n" "" (car (last (split-string line " "))))))
+         (page-num (substring-no-properties (replace-regexp-in-string "\n" "" (car (last (split-string line " ")))))))
     ;; Jump to page.
     (switch-to-buffer-other-window eaf-pdf-outline-pdf-document)
     (eaf-call-sync "call_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num))
