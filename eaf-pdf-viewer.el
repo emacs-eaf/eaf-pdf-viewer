@@ -245,12 +245,12 @@ Non-nil means don't invert images."
             pdf-buffer)))
 
 (defun eaf-pdf-outline ()
-  "Create PDF outline."
+  "Display an PDF outline of the current buffer."
   (interactive)
   (let ((pdf-buffer (current-buffer))
         (toc (eaf-call-sync "call_function" eaf--buffer-id "get_toc"))
         (page-number (string-to-number (eaf-call-sync "call_function" eaf--buffer-id "current_page")))
-        (outline-buf (get-buffer-create (eaf-pdf-outline-buffer-name (current-buffer)))))
+        (outline-buf (get-buffer-create (eaf-pdf-outline-buffer-name))))
     ;; Save window configuration before outline.
     (setq eaf-pdf-outline-window-configuration (current-window-configuration))
 
@@ -267,7 +267,7 @@ Non-nil means don't invert images."
         (read-only-mode 1))
       (eaf-pdf-outline-mode)
       (setq-local eaf-pdf-outline-pdf-document pdf-buffer))
-
+    
     ;; Popup outline buffer.
     (pop-to-buffer outline-buf)))
 
