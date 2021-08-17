@@ -188,13 +188,11 @@ Non-nil means don't invert images."
 
 ;;; Code:
 ;;;; Outline buffer & Imenu
+
 (defcustom eaf-pdf-outline-buffer-indent 4
   "The level of indent in the Outline buffer."
   :type 'integer
   :group 'eaf-pdf-viewer)
-
-(defvar eaf-pdf-outline-buffer-name "*eaf pdf outline*"
-  "The name of pdf-outline-buffer.")
 
 (defvar eaf-pdf-outline-window-configuration nil
   "Save window configure before popup outline buffer.")
@@ -225,17 +223,25 @@ Non-nil means don't invert images."
   (toggle-truncate-lines 1)
   (setq buffer-read-only t))
 
+(defun eaf-pdf-outline-buffer-name (&optional pdf-buffer)
+  (unless pdf-buffer (setq pdf-buffer (current-buffer)))
+  (format "*Outline: %s*"
+          (if (bufferp pdf-buffer)
+              (buffer-name pdf-buffer)
+            pdf-buffer)))
+
 (defun eaf-pdf-outline ()
   "Create PDF outline."
   (interactive)
   (let ((buffer-name (buffer-name (current-buffer)))
         (toc (eaf-call-sync "call_function" eaf--buffer-id "get_toc"))
-        (page-number (string-to-number (eaf-call-sync "call_function" eaf--buffer-id "current_page"))))
+        (page-number (string-to-number (eaf-call-sync "call_function" eaf--buffer-id "current_page")))
+        (outline-buf (get-buffer-create (eaf-pdf-outline-buffer-name (current-buffer)))))
     ;; Save window configuration before outline.
     (setq eaf-pdf-outline-window-configuration (current-window-configuration))
 
     ;; Insert outline content.
-    (with-current-buffer (get-buffer-create  eaf-pdf-outline-buffer-name)
+    (with-current-buffer outline-buf
       (setq buffer-read-only nil)
       (erase-buffer)
       (insert toc)
@@ -248,8 +254,8 @@ Non-nil means don't invert images."
         (read-only-mode 1))
       (eaf-pdf-outline-mode))
 
-    ;; Popup ouline buffer.
-    (pop-to-buffer eaf-pdf-outline-buffer-name)))
+    ;; Popup outline buffer.
+    (pop-to-buffer outline-buf)))
 
 (defun eaf-pdf-outline-jump ()
   "Jump into specific page."
