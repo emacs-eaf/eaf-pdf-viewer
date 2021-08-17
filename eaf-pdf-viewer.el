@@ -336,7 +336,7 @@ when there is no table of contents for the buffer."
                     (t
                      (mapcar #'(lambda (line)
                                  (let ((line-split (split-string line " ")))
-                                   (list (string-trim (string-join (butlast line-split) " "))
+                                   (list (string-join (butlast line-split) " ")
                                          (string-to-number (car (last line-split)))
                                          #'eaf-pdf-imenu-go-to-index
                                          nil)))
