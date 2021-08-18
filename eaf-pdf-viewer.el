@@ -56,69 +56,57 @@
 ;; No need more.
 
 ;;; Customize:
-;;
-;;
-;;
-;; All of the above can customize by:
-;;      M-x customize-group RET eaf-pdf-viewer RET
-;;
 
-;;; Change log:
-;;
-;; 2021/07/20
-;;      * First released.
-;;
-
-;;; Acknowledgements:
-;;
-;;
-;;
-
-;;; TODO
-;;
-;;
-;;
-
-;;; Require
-
-
-;;; Code:
-
-(defvar eaf-pdf-outline-buffer-name "*eaf pdf outline*"
-  "The name of pdf-outline-buffer.")
-
-(defvar eaf-pdf-outline-window-configuration nil
-  "Save window configure before popup outline buffer.")
+(defgroup eaf-pdf-viewer nil
+  "The PDF viewer application of Emacs application framework."
+  :group 'eaf)
 
 (defcustom eaf-pdf-extension-list
   '("pdf" "xps" "oxps" "cbz" "epub" "fb2" "fbz")
   "The extension list of pdf application."
-  :type 'cons)
+  :type 'list
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-office-extension-list
   '("docx" "doc" "ppt" "pptx" "xlsx" "xls")
   "The extension list of office application."
-  :type 'cons)
+  :type 'list
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-store-history t
   "If it is t, the pdf file path will be stored in eaf-config-location/pdf/history/log.txt for eaf-open-pdf-from-history to use"
-  :type 'boolean)
+  :type 'boolean
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-dark-mode "follow"
-  ""
-  :type 'string)
+  "Whether to enable inverted color rendering when starting the pdf-viewer app.
+
+Possible values are
+   - \"follow\" Follow the background color of the theme of user.
+   - \"force\" Force inverted color rendering on start-up.
+   - \"ignore\" Don't do inverted rendering."
+  :type '(choice (string :tag "Force inverted color rendering." "force")                 
+                 (string :tag "Follow the background color of user's theme." "follow")
+                 (other :tag "Do normal rendering." "ignore"))
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-default-zoom 1.0
-  ""
-  :type 'float)
+  "The default zooming percentage when starting the pdf-viewer app."
+  :type 'float
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-scroll-ratio 0.05
-  ""
-  :type 'float)
+  "The ratio of the page in each step when scrolling."
+  :type 'float
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-dark-exclude-image t
-  ""
-  :type 'boolean)
+  "Don't invert images when toggling inverted color rendering.
+
+Nil means also invert images.
+Non-nil means don't invert images."
+  :type 'boolean
+  :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-viewer-keybinding
   '(("j" . "scroll_up")
@@ -167,54 +155,157 @@
     ("o" . "eaf-pdf-outline")
     ("T" . "toggle_trim_white_margin"))
   "The keybinding of EAF PDF Viewer."
-  :type 'cons)
+  :type '(alist :key-type (string :tag "Key bindings (e.g. \"C-n\", \"<f4>\", etc.)")
+                :value-type (string :tag "Function name"))
+  :group 'eaf-pdf-viewer)
 
-(define-minor-mode eaf-pdf-outline-mode
+;;
+;; All of the above can customize by:
+;;      M-x customize-group RET eaf-pdf-viewer RET
+;;
+
+;;; Change log:
+;;
+;; 2021/07/20
+;;      * First released.
+;; 2021/08/16
+;;      * More elaborate defcustoms
+;;      * Divide code via outline-mode
+;;
+
+;;; Acknowledgements:
+;;
+;;
+;;
+
+;;; TODO
+;;
+;;
+;;
+
+;;; Require
+(require 'outline)
+
+;;; Code:
+;;;; Outline buffer & Imenu
+
+(defcustom eaf-pdf-outline-buffer-indent 4
+  "The level of indent in the Outline buffer."
+  :type 'integer
+  :group 'eaf-pdf-viewer)
+
+(defvar-local eaf-pdf-outline-pdf-document nil
+  "The PDF filename or buffer corresponding to this outline
+  buffer.")
+
+(defvar-local eaf-pdf--outline-window-configuration nil
+  "Save window configure before popup outline buffer.")
+
+(defvar eaf-pdf-outline-mode-map
+  (let ((map (make-sparse-keymap)))
+    (dotimes (i 10)
+      (define-key map (vector (+ i ?0)) 'digit-argument))
+    (define-key map "-" 'negative-argument)
+    ;; Navigation
+    (define-key map (kbd "p") 'previous-line)
+    (define-key map (kbd "P") 'eaf-pdf-outline-view-prev)
+    (define-key map (kbd "n") 'next-line)
+    (define-key map (kbd "N") 'eaf-pdf-outline-view-next)
+    (define-key map (kbd "SPC") 'eaf-pdf-outline-view-next)
+    (define-key map (kbd "RET") 'eaf-pdf-outline-jump)
+    (define-key map (kbd "o") 'eaf-pdf-outline-view)
+    (define-key map (kbd "v") 'eaf-pdf-outline-view)
+
+    ;; Outline-mode stuffs
+    (define-key map (kbd "b") 'outline-backward-same-level)
+    (define-key map (kbd "d") 'outline-hide-subtree)
+    (define-key map (kbd "a") 'outline-show-all)
+    (define-key map (kbd "s") 'outline-show-subtree)
+    (define-key map (kbd "f") 'outline-forward-same-level)
+    (define-key map (kbd "Q") 'outline-hide-sublevels)
+    (define-key map (kbd "RET") 'eaf-pdf-outline-jump)
+    (define-key map (kbd "Q") 'hide-sublevels)
+    map)
+  "Keymap used in `eaf-pdf-outline-mode'.")
+
+(define-derived-mode eaf-pdf-outline-mode outline-mode "PDF Outline"
   "EAF pdf outline mode."
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "RET") 'eaf-pdf-outline-jump)
-            (define-key map (kbd "q") 'quit-window)
-            map))
+  (setq-local outline-regexp "\\( *\\).")
+  (setq-local outline-level
+              #'(lambda nil (1+ (/ (length (match-string 1))
+                                 eaf-pdf-outline-buffer-indent))))
+  (toggle-truncate-lines 1)
+  (setq buffer-read-only t))
+
+(defun eaf-pdf-outline-buffer-name (&optional pdf-buffer)
+  (unless pdf-buffer (setq pdf-buffer (current-buffer)))
+  (format "*Outline: %s*"
+          (if (bufferp pdf-buffer)
+              (buffer-name pdf-buffer)
+            pdf-buffer)))
 
 (defun eaf-pdf-outline ()
-  "Create PDF outline."
+  "Display an PDF outline of the current buffer."
   (interactive)
-  (let ((buffer-name (buffer-name (current-buffer)))
+  (let ((pdf-buffer (current-buffer))
         (toc (eaf-call-sync "call_function" eaf--buffer-id "get_toc"))
-        (page-number (string-to-number (eaf-call-sync "call_function" eaf--buffer-id "current_page"))))
+        (page-number (string-to-number (eaf-call-sync "call_function" eaf--buffer-id "current_page")))
+        (outline-buf (get-buffer-create (eaf-pdf-outline-buffer-name))))
     ;; Save window configuration before outline.
-    (setq eaf-pdf-outline-window-configuration (current-window-configuration))
+    (setq eaf-pdf--outline-window-configuration (current-window-configuration))
 
     ;; Insert outline content.
-    (with-current-buffer (get-buffer-create  eaf-pdf-outline-buffer-name)
+    (with-current-buffer outline-buf
       (setq buffer-read-only nil)
       (erase-buffer)
       (insert toc)
-      (setq toc (mapcar (lambda (line)
+      (setq toc (mapcar #'(lambda (line)
                           (string-to-number (car (last (split-string line " ")))))
                         (butlast (split-string (buffer-string) "\n"))))
       (goto-line (seq-count (apply-partially #'>= page-number) toc))
-      (set (make-local-variable 'eaf-pdf-outline-original-buffer-name) buffer-name)
       (let ((view-read-only nil))
         (read-only-mode 1))
-      (eaf-pdf-outline-mode 1))
-
-    ;; Popup ouline buffer.
-    (pop-to-buffer eaf-pdf-outline-buffer-name)))
+      (eaf-pdf-outline-mode)
+      (setq-local eaf-pdf-outline-pdf-document pdf-buffer))
+    
+    ;; Popup outline buffer.
+    (pop-to-buffer outline-buf)))
 
 (defun eaf-pdf-outline-jump ()
   "Jump into specific page."
   (interactive)
   (let* ((line (thing-at-point 'line))
-         (page-num (replace-regexp-in-string "\n" "" (car (last (split-string line " "))))))
+         (page-num (substring-no-properties (replace-regexp-in-string "\n" "" (car (last (split-string line " ")))))))
     ;; Jump to page.
-    (switch-to-buffer-other-window eaf-pdf-outline-original-buffer-name)
+    (switch-to-buffer-other-window eaf-pdf-outline-pdf-document)
     (eaf-call-sync "call_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num))
 
     ;; Restore window configuration before outline operation.
-    (when eaf-pdf-outline-window-configuration
-      (set-window-configuration eaf-pdf-outline-window-configuration)
-      (setq eaf-pdf-outline-window-configuration nil))))
+    (when eaf-pdf--outline-window-configuration
+      (set-window-configuration eaf-pdf--outline-window-configuration)
+      (setq eaf-pdf--outline-window-configuration nil))))
+
+(defun eaf-pdf-outline-view ()
+  "View the specific page."
+  (interactive)
+  (let* ((line (thing-at-point 'line))
+         (page-num (substring-no-properties (replace-regexp-in-string "\n" "" (car (last (s-split " " line)))))))
+    ;; Jump to page.
+    (eaf-call-async "call_function_with_args"
+                   (buffer-local-value 'eaf--buffer-id eaf-pdf-outline-pdf-document)
+                   "jump_to_page_with_num" (format "%s" page-num))))
+
+(defun eaf-pdf-outline-view-prev ()
+  "View the specific page in the previous line."
+  (interactive)
+  (previous-line)
+  (eaf-pdf-outline-view))
+
+(defun eaf-pdf-outline-view-next ()
+  "View the specific page in the next line."
+  (interactive)
+  (next-line)
+  (eaf-pdf-outline-view))
 
 (defun eaf-pdf-imenu-create-index-from-toc ()
   "Create an alist based on the table of contents of this buffer.
@@ -245,7 +336,7 @@ when there is no table of contents for the buffer."
                     (t
                      (mapcar #'(lambda (line)
                                  (let ((line-split (split-string line " ")))
-                                   (list (string-trim (string-join (butlast line-split) " "))
+                                   (list (string-join (butlast line-split) " ")
                                          (string-to-number (car (last line-split)))
                                          #'eaf-pdf-imenu-go-to-index
                                          nil)))
@@ -264,6 +355,7 @@ Just ignore them and call \"jump_page\" to PAGE-NUM."
 
 (add-hook 'eaf-pdf-viewer-hook 'eaf-pdf-imenu-setup)
 
+;;;; PDF-viewer
 (defun eaf-pdf-get-annots (page)
   "Return a map of annotations on PAGE.
 
@@ -344,8 +436,7 @@ This function works best if paired with a fuzzy search package."
   "Get the MD5 value of a specified FILE."
   (car (split-string (shell-command-to-string (format "md5sum '%s'" (file-truename file))) " ")))
 
-
-;; syntex support
+;;;; Synctex support
 
 (defvar eaf-pdf-synctex-path "synctex"
   "Path of synctex tool.")
@@ -429,6 +520,7 @@ This function works best if paired with a fuzzy search package."
         (goto-line line-num)))))
 
 
+;;;; Register as module for EAF
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))
 
 (setq eaf-pdf-viewer-module-path (concat (file-name-directory load-file-name) "buffer.py"))
