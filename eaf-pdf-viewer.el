@@ -198,7 +198,7 @@ Non-nil means don't invert images."
   "The PDF filename or buffer corresponding to this outline
   buffer.")
 
-(defvar eaf-pdf-outline-window-configuration nil
+(defvar-local eaf-pdf--outline-window-configuration nil
   "Save window configure before popup outline buffer.")
 
 (defvar eaf-pdf-outline-mode-map
@@ -252,7 +252,7 @@ Non-nil means don't invert images."
         (page-number (string-to-number (eaf-call-sync "call_function" eaf--buffer-id "current_page")))
         (outline-buf (get-buffer-create (eaf-pdf-outline-buffer-name))))
     ;; Save window configuration before outline.
-    (setq eaf-pdf-outline-window-configuration (current-window-configuration))
+    (setq eaf-pdf--outline-window-configuration (current-window-configuration))
 
     ;; Insert outline content.
     (with-current-buffer outline-buf
@@ -281,9 +281,9 @@ Non-nil means don't invert images."
     (eaf-call-sync "call_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num))
 
     ;; Restore window configuration before outline operation.
-    (when eaf-pdf-outline-window-configuration
-      (set-window-configuration eaf-pdf-outline-window-configuration)
-      (setq eaf-pdf-outline-window-configuration nil))))
+    (when eaf-pdf--outline-window-configuration
+      (set-window-configuration eaf-pdf--outline-window-configuration)
+      (setq eaf-pdf--outline-window-configuration nil))))
 
 (defun eaf-pdf-outline-view ()
   "View the specific page."
