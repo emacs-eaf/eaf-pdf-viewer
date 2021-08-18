@@ -232,7 +232,7 @@ Non-nil means don't invert images."
   "EAF pdf outline mode."
   (setq-local outline-regexp "\\( *\\).")
   (setq-local outline-level
-              (lambda nil (1+ (/ (length (match-string 1))
+              #'(lambda nil (1+ (/ (length (match-string 1))
                                  eaf-pdf-outline-buffer-indent))))
   (toggle-truncate-lines 1)
   (setq buffer-read-only t))
@@ -259,7 +259,7 @@ Non-nil means don't invert images."
       (setq buffer-read-only nil)
       (erase-buffer)
       (insert toc)
-      (setq toc (mapcar (lambda (line)
+      (setq toc (mapcar #'(lambda (line)
                           (string-to-number (car (last (split-string line " ")))))
                         (butlast (split-string (buffer-string) "\n"))))
       (goto-line (seq-count (apply-partially #'>= page-number) toc))
@@ -324,7 +324,7 @@ when there is no table of contents for the buffer."
       (setq imenu--index-alist
             (let ((toc (eaf-call-sync "call_function" eaf--buffer-id "get_toc")))
               (cond ((string= toc "")
-                     (mapcar (lambda (page-num)
+                     (mapcar #'(lambda (page-num)
                                  (list (concat "Page " (number-to-string page-num)) page-num
                                        #'eaf-pdf-imenu-go-to-index
                                        nil))
@@ -334,7 +334,7 @@ when there is no table of contents for the buffer."
                                                               eaf--buffer-id
                                                               "page_total_number")))))
                     (t
-                     (mapcar (lambda (line)
+                     (mapcar #'(lambda (line)
                                  (let ((line-split (split-string line " ")))
                                    (list (string-join (butlast line-split) " ")
                                          (string-to-number (car (last line-split)))
