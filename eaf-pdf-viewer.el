@@ -156,7 +156,7 @@ Non-nil means don't invert images."
     ("T" . "toggle_trim_white_margin"))
   "The keybinding of EAF PDF Viewer."
   :type '(alist :key-type (string :tag "Key bindings (e.g. \"C-n\", \"<f4>\", etc.)")
-                :value-type (string :tag "Python function"))
+                :value-type (string :tag "Function name"))
   :group 'eaf-pdf-viewer)
 
 ;;
