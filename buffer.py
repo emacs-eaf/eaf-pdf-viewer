@@ -26,7 +26,7 @@ from PyQt5.QtGui import QPainter
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
-from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_var, get_emacs_config_dir
+from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_vars, get_emacs_config_dir
 import fitz
 import time
 import random
@@ -41,13 +41,18 @@ class AppBuffer(Buffer):
     def __init__(self, buffer_id, url, arguments):
         Buffer.__init__(self, buffer_id, url, arguments, False)
 
+        (buffer_background_color, self.store_history, self.pdf_dark_mode) = get_emacs_vars([
+             "eaf-buffer-background-color",
+             "eaf-pdf-store-history",
+             "eaf-pdf-dark-mode"])
+
         self.delete_temp_file = arguments == "temp_pdf_file"
 
         self.synctex_page_num = None
         if arguments.startswith("synctex_page_num"):
             self.synctex_page_num = int(arguments.split("=")[1])
 
-        self.add_widget(PdfViewerWidget(url, QColor(get_emacs_var("eaf-buffer-background-color")), buffer_id, self.synctex_page_num))
+        self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), buffer_id, self.synctex_page_num))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
 
         # Use thread to avoid slow down open speed.
@@ -60,7 +65,7 @@ class AppBuffer(Buffer):
             self.change_title(arguments.split("_office_pdf")[0])
 
     def record_open_history(self):
-        if get_emacs_var("eaf-pdf-store-history"):
+        if self.store_history:
             # Make sure file created.
             history_file = os.path.join(get_emacs_config_dir(), "pdf", "history", "log.txt")
             touch(history_file)
@@ -139,7 +144,7 @@ class AppBuffer(Buffer):
         self.buffer_widget.scale = float(scale)
         self.buffer_widget.read_mode = read_mode
         self.buffer_widget.rotation = int(rotation)
-        if get_emacs_var("eaf-pdf-dark-mode") == "ignore":
+        if self.pdf_dark_mode == "ignore":
             self.buffer_widget.inverted_mode = inverted_mode == "True"
         self.buffer_widget.update()
 
@@ -596,6 +601,19 @@ class PdfViewerWidget(QWidget):
         self.installEventFilter(self)
         self.setMouseTracking(True)
 
+        (self.marker_letters,
+         self.pdf_dark_mode, self.pdf_default_zoom, self.pdf_dark_exclude_image, self.pdf_scroll_ratio,
+         self.theme_foreground_color, self.theme_background_color, self.theme_mode) = get_emacs_vars([
+             "eaf-marker-letters",
+             "eaf-pdf-dark-mode",
+             "eaf-pdf-default-zoom",
+             "eaf-pdf-dark-exclude-image",
+             "eaf-pdf-scroll-ratio",
+             "eaf-emacs-theme-foreground-color",
+             "eaf-emacs-theme-background-color",
+             "eaf-emacs-theme-mode"
+         ])
+
         # Load document first.
         self.document = PdfDocument(fitz.open(url))
         self.document.watch_file(url, lambda: (self.page_cache_pixmap_dict.clear(), self.update()))
@@ -613,21 +631,21 @@ class PdfViewerWidget(QWidget):
         self.rotation = 0
 
         # Simple string comparation.
-        if (get_emacs_var("eaf-pdf-default-zoom") != 1.0):
+        if (self.pdf_default_zoom != 1.0):
             self.read_mode = "fit_to_customize"
-            self.scale = get_emacs_var("eaf-pdf-default-zoom")
+            self.scale = self.pdf_default_zoom
         self.horizontal_offset = 0
 
         # Inverted mode.
         self.inverted_mode = False
-        if (get_emacs_var("eaf-pdf-dark-mode") == "force" or \
-            get_emacs_var("eaf-pdf-dark-mode") == True or \
-            ((get_emacs_var("eaf-pdf-dark-mode") == "follow" or get_emacs_var("eaf-pdf-dark-mode") == "ignore") and \
-             get_emacs_var("eaf-emacs-theme-mode") == "dark")):
+        if (self.pdf_dark_mode == "force" or \
+            self.pdf_dark_mode == True or \
+            ((self.pdf_dark_mode == "follow" or self.pdf_dark_mode == "ignore") and \
+             self.theme_mode == "dark")):
             self.inverted_mode = True
 
         # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
-        self.inverted_mode_exclude_image = get_emacs_var("eaf-pdf-dark-exclude-image") and self.document.isPDF
+        self.inverted_mode_exclude_image = self.pdf_dark_exclude_image and self.document.isPDF
 
         # mark link
         self.is_mark_link = False
@@ -663,8 +681,8 @@ class PdfViewerWidget(QWidget):
         self.scroll_offset = 0
         self.scroll_ratio = 0.05
         self.scroll_wheel_lasttime = time.time()
-        if get_emacs_var("eaf-pdf-scroll-ratio") != 0.05:
-            self.scroll_ratio = get_emacs_var("eaf-pdf-scroll-ratio")
+        if self.pdf_scroll_ratio != 0.05:
+            self.scroll_ratio = self.pdf_scroll_ratio
 
         # Default presentation mode
         self.presentation_mode = False
@@ -675,7 +693,6 @@ class PdfViewerWidget(QWidget):
         # Init font.
         self.page_annotate_padding_right = 10
         self.page_annotate_padding_bottom = 10
-        self.page_annotate_light_color = QColor(get_emacs_var("eaf-emacs-theme-foreground-color"))
 
         self.font = QFont()
         self.font.setPointSize(12)
@@ -762,13 +779,13 @@ class PdfViewerWidget(QWidget):
             page.cleanup_search_text()
 
         if self.is_jump_link:
-            self.jump_link_key_cache_dict.update(page.mark_jump_link_tips(get_emacs_var("eaf-marker-letters")))
+            self.jump_link_key_cache_dict.update(page.mark_jump_link_tips(self.marker_letters))
         else:
             page.cleanup_jump_link_tips()
             self.jump_link_key_cache_dict.clear()
 
-        if get_emacs_var("eaf-pdf-dark-mode") == "follow" and self.document.isPDF:
-            color = inverted_color(get_emacs_var("eaf-emacs-theme-background-color"), self.inverted_mode)
+        if self.pdf_dark_mode == "follow" and self.document.isPDF:
+            color = inverted_color(self.theme_background_color, self.inverted_mode)
             col = (color.redF(), color.greenF(), color.blueF())
             page.drawRect(page.CropBox, color=col, fill=col, overlay=False)
 
@@ -852,9 +869,9 @@ class PdfViewerWidget(QWidget):
         painter.setFont(self.font)
 
         if self.rect().width() <= render_width and not self.inverted_mode:
-            painter.setPen(inverted_color((get_emacs_var("eaf-emacs-theme-foreground-color")), True))
+            painter.setPen(inverted_color((self.theme_foreground_color), True))
         else:
-            painter.setPen(inverted_color((get_emacs_var("eaf-emacs-theme-foreground-color"))))
+            painter.setPen(inverted_color((self.theme_foreground_color)))
 
         # Draw progress.
         progress_percent = int((self.start_page_index + 1) * 100 / self.page_total_number)
