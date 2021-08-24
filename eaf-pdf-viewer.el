@@ -108,8 +108,8 @@ Non-nil means don't invert images."
   :type 'boolean
   :group 'eaf-pdf-viewer)
 
-(defcustom eaf-pdf-mark-fontsize 8
-  "The fontsize used by pdf mark."
+(defcustom eaf-pdf-marker-fontsize 8
+  "The fontsize used by pdf marker."
   :type 'integer
   :group 'eaf-pdf-viewer)
 

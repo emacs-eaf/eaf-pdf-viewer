@@ -564,7 +564,7 @@ class PdfPage(fitz.Page):
             self._mark_search_annot_list = []
 
     def mark_jump_link_tips(self, letters):
-        fontsize, = get_emacs_vars(["eaf-pdf-mark-fontsize"])
+        fontsize, = get_emacs_vars(["eaf-pdf-marker-fontsize"])
         cache_dict = {}
         if self.page.firstLink:
             links = self.page.getLinks()
