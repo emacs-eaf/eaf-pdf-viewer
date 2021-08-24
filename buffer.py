@@ -564,7 +564,7 @@ class PdfPage(fitz.Page):
             self._mark_search_annot_list = []
 
     def mark_jump_link_tips(self, letters):
-        tips_size = 4
+        fontsize, = get_emacs_vars(["eaf-pdf-mark-fontsize"])
         cache_dict = {}
         if self.page.firstLink:
             links = self.page.getLinks()
@@ -572,9 +572,10 @@ class PdfPage(fitz.Page):
             for index, link in enumerate(links):
                 key = key_list[index]
                 link_rect = link["from"]
-                annot_rect = fitz.Rect(link_rect.top_left, link_rect.x0 + (tips_size * len(key)), link_rect.y0 + 7)
-                annot = self.page.addFreetextAnnot(annot_rect, str(key), fontsize=6, fontname="Cour", \
-                                              text_color=[0.0, 0.0, 0.0], fill_color=[255/255.0, 197/255.0, 36/255.0])
+                annot_rect = fitz.Rect(link_rect.top_left, link_rect.x0 + fontsize/1.2 * len(key), link_rect.y0 + fontsize)
+                annot = self.page.addFreetextAnnot(annot_rect, str(key), fontsize=fontsize, fontname="Helv", \
+                                                   text_color=[0.0, 0.0, 0.0], fill_color=[255/255.0, 197/255.0, 36/255.0], \
+                                                   align = 1)
                 annot.parent = self.page
                 self._mark_jump_annot_list.append(annot)
                 cache_dict[key] = link
