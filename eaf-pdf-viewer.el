@@ -78,6 +78,11 @@
   :type 'boolean
   :group 'eaf-pdf-viewer)
 
+(defcustom eaf-pdf-notify-file-changed t
+  "If it is t, pdf-viewer will notify that the displayed pdf file is changed. Otherwise the pdf-viewer buffer will be refreshed silently."
+  :type 'boolean
+  :group 'eaf-pdf-viewer)
+
 (defcustom eaf-pdf-dark-mode "follow"
   "Whether to enable inverted color rendering when starting the pdf-viewer app.
 

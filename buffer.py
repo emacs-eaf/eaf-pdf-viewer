@@ -358,7 +358,10 @@ class PdfDocument(fitz.Document):
             except:
                 return
 
-            message_to_emacs("Detected that %s has been changed. Refreshing buffer..." %path)
+            notify, = get_emacs_vars(["eaf-pdf-notify-file-changed"])
+            if notify:
+                message_to_emacs("Detected that %s has been changed. Refreshing buffer..." %path)
+
             self.watch_callback()
             # if the file have been renew save, file_changed_watcher will remove the path form monitor list.
             if len(self.file_changed_wacher.files()) == 0 :
