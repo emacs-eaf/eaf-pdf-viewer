@@ -164,7 +164,7 @@ class AppBuffer(Buffer):
 
     def jump_to_link(self):
         self.buffer_widget.add_mark_jump_link_tips()
-        self.send_input_message("Jump to Link: ", "jump_link")
+        self.send_input_message("Jump to Link: ", "jump_link", "marker")
 
     def action_quit(self):
         if self.buffer_widget.is_mark_search:
@@ -276,6 +276,9 @@ class AppBuffer(Buffer):
         rect = fitz.Rect(float(arr[0]), float(arr[1]), float(arr[2]), float(arr[3]))
         self.buffer_widget.jump_to_rect(int(page_index), rect)
         return ""
+
+    def fetch_marker_callback(self):
+        return list(map(lambda x: x.lower(), self.buffer_widget.jump_link_key_cache_dict.keys()))
 
 class PdfDocument(fitz.Document):
     def __init__(self, document):
@@ -1103,6 +1106,7 @@ class PdfViewerWidget(QWidget):
         key = key.upper()
         if key in self.jump_link_key_cache_dict:
             self.handle_jump_to_link(self.jump_link_key_cache_dict[key])
+        self.cleanup_links()
 
     def handle_jump_to_link(self, link):
         if "page" in link:
