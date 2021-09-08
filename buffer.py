@@ -365,7 +365,11 @@ class PdfDocument(fitz.Document):
             if notify:
                 message_to_emacs("Detected that %s has been changed. Refreshing buffer..." %path)
 
-            self.watch_callback()
+            try:
+                self.watch_callback()
+            except Exception:
+                print("Failed to watch callback")
+
             # if the file have been renew save, file_changed_watcher will remove the path form monitor list.
             if len(self.file_changed_wacher.files()) == 0 :
                 self.file_changed_wacher.addPath(path)
