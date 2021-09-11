@@ -253,10 +253,13 @@ class AppBuffer(Buffer):
             result += "{0}{1} {2}\n".format("".join("    " * (line[0] - 1)), line[1], line[2])
         return result
 
-    def get_annots(self, page_index):
+    def get_page_annots(self, page_index):
         '''
         Return a list of annotations on page_index of types.
         '''
+        if self.buffer_widget.document[page_index].firstAnnot is None:
+            return None
+
         # Notes: annots need the pymupdf above 1.16.4 version.
         annots = self.buffer_widget.get_annots(int(page_index))
         result = {}
@@ -266,8 +269,23 @@ class AppBuffer(Buffer):
             type = annot.type
             if len(type) != 2:
                 continue
-            result[id] = {"page": page_index, "type_int": type[0], "type_name": type[1], "rect": "%s:%s:%s:%s" %(rect.x0, rect.y0, rect.x1, rect.y1)}
+            result[id] = {
+                "info": annot.info,
+                "page": page_index,
+                "type_int": type[0],
+                "type_name": type[1],
+                "rect": "%s:%s:%s:%s" %(rect.x0, rect.y0, rect.x1, rect.y1),
+                "text": annot.parent.get_textbox(rect),
+            }
         return json.dumps(result)
+
+    def get_document_annots(self):
+        annots = {}
+        for page_index in range(self.buffer_widget.page_total_number):
+            annot = self.get_page_annots(page_index)
+            if annot:
+                annots[page_index] = annot
+        return json.dumps(annots)
 
     def jump_to_rect(self, page_index, rect):
         arr = rect.split(":")
