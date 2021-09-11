@@ -90,7 +90,7 @@ Possible values are
    - \"follow\" Follow the background color of the theme of user.
    - \"force\" Force inverted color rendering on start-up.
    - \"ignore\" Don't do inverted rendering."
-  :type '(choice (string :tag "Force inverted color rendering." "force")                 
+  :type '(choice (string :tag "Force inverted color rendering." "force")
                  (string :tag "Follow the background color of user's theme." "follow")
                  (other :tag "Do normal rendering." "ignore"))
   :group 'eaf-pdf-viewer)
@@ -277,7 +277,7 @@ Non-nil means don't invert images."
         (read-only-mode 1))
       (eaf-pdf-outline-mode)
       (setq-local eaf-pdf-outline-pdf-document pdf-buffer))
-    
+
     ;; Popup outline buffer.
     (pop-to-buffer outline-buf)))
 
@@ -366,11 +366,17 @@ Just ignore them and call \"jump_page\" to PAGE-NUM."
 (add-hook 'eaf-pdf-viewer-hook 'eaf-pdf-imenu-setup)
 
 ;;;; PDF-viewer
-(defun eaf-pdf-get-annots (page)
+(defun eaf-pdf-get-page-annots (page)
   "Return a map of annotations on PAGE.
 
 The key is the annot id on PAGE."
-  (eaf-call-sync "call_function_with_args" eaf--buffer-id "get_annots" (format "%s" page)))
+  (eaf-call-sync "call_function_with_args" eaf--buffer-id "get_page_annots" (format "%s" page)))
+
+(defun eaf-pdf-get-document-annots ()
+  "Return a map of page_index of annots.
+
+The key is the page_index."
+  (eaf-call-sync "call_function" eaf--buffer-id "get_document_annots"))
 
 (defun eaf-pdf-jump-to-annot (annot)
   "Jump to specifical pdf annot."
