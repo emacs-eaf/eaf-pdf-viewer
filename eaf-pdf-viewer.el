@@ -483,7 +483,9 @@ This function works best if paired with a fuzzy search package."
       (let ((synctex-result)
             (page-num 1)
             (synctex-view-command (format "%s view -i %s:1:%s -o %s"
-                                          eaf-pdf-synctex-path line-num tex-file pdf-file)))
+                                          eaf-pdf-synctex-path line-num
+                                          (prin1-to-string tex-file)
+                                          (prin1-to-string pdf-file))))
         (setq synctex-result (shell-command-to-string synctex-view-command))
         (if (and synctex-result (string-match "Page:\\([0-9]+\\)\n" synctex-result))
             (setq page-num  (string-to-number (match-string 1 synctex-result)))
@@ -494,13 +496,14 @@ This function works best if paired with a fuzzy search package."
 (defun eaf-pdf--get-tex-and-line (pdf-file page-num x y)
   "Use synctex tool to get tex file and line num through `page-file', `page-num', `x' and `y'."
   (if (executable-find eaf-pdf-synctex-path)
-      (let ((synctex-result)
-            (page-num 1)
-            (synctex-edit-command (format "%s edit -o %s:%s:%s:%s -d %s"
-                                          eaf-pdf-synctex-path page-num x y pdf-file
-                                          (funcall eaf-pdf-synctex-file-directory-function pdf-file)))
-            (tex-file nil)
-            (line-num nil))
+      (let* ((synctex-result)
+             (synctex-dir (funcall eaf-pdf-synctex-file-directory-function pdf-file))
+             (synctex-edit-command (format "%s edit -o %s:%s:%s:%s -d %s"
+                                           eaf-pdf-synctex-path page-num x y
+                                           (prin1-to-string pdf-file)
+                                           (prin1-to-string synctex-dir)))
+             (tex-file nil)
+             (line-num nil))
         (setq synctex-result (shell-command-to-string synctex-edit-command))
         (if (and synctex-result (string-match "Input:\\(.*\\)\nLine:\\([0-9]+\\)\n" synctex-result))
             (setq tex-file  (expand-file-name (match-string 1 synctex-result))
@@ -510,7 +513,7 @@ This function works best if paired with a fuzzy search package."
     (message "Can not found %s" eaf-pdf-synctex-path)
     nil))
 
-(defun eaf-pdf-synctex-forward-view()
+(defun eaf-pdf-synctex-forward-view ()
   "View the PDF file of Tex synchronously."
   (let* ((pdf-url (expand-file-name (TeX-active-master (TeX-output-extension))))
          (tex-buffer (window-buffer (minibuffer-selected-window)))
@@ -519,11 +522,12 @@ This function works best if paired with a fuzzy search package."
          (opened-buffer (eaf-pdf--find-buffer pdf-url))
          (page-num (eaf-pdf--get-page-num tex-file line-num pdf-url)))
     (if (not opened-buffer)
-        (eaf-open pdf-url "pdf-viewer" (format "synctex_page_num=%s" page-num))
+        (eaf-open (prin1-to-string pdf-url)
+                  "pdf-viewer" (format "synctex_page_num=%s" page-num))
       (pop-to-buffer opened-buffer)
       (eaf-call-sync "call_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num)))))
 
-(defun eaf-pdf-synctex-backward-edit(pdf-file page-num x y)
+(defun eaf-pdf-synctex-backward-edit (pdf-file page-num x y)
   "Edit the Tex file corresponding to (`page-num', `x' , `y') of the `pdf-file'."
   (let* ((tex-and-line (eaf-pdf--get-tex-and-line pdf-file page-num x y))
          (tex-file (nth 0 tex-and-line))
