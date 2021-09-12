@@ -1541,6 +1541,7 @@ class PdfViewerWidget(QWidget):
                 self.handle_translate_word()
             elif event.button() == Qt.LeftButton and self.synctex_page_num:
                 self.handle_synctex_backward_edit()
+                return True
 
         return False
 
