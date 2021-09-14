@@ -152,6 +152,7 @@ Non-nil means don't invert images."
     ("C-s" . "search_text_forward")
     ("C-r" . "search_text_backward")
     ("x" . "close_buffer")
+    ("r" . "reload_document")
     ("C-<right>" . "rotate_clockwise")
     ("C-<left>" . "rotate_counterclockwise")
     ("M-h" . "add_annot_highlight")

@@ -996,6 +996,15 @@ class PdfViewerWidget(QWidget):
         return self.scale * self.page_height * self.page_total_number - self.rect().height()
 
     @interactive
+    def reload_document(self):
+        self.document = PdfDocument(fitz.open(self.url))
+        # recompute width, height, total number since the file might be modified
+        self.page_width = self.document.get_page_width()
+        self.page_height = self.document.get_page_height()
+        self.page_total_number = self.document.pageCount
+        message_to_emacs("Reloaded document!")
+
+    @interactive
     def toggle_read_mode(self):
         if self.read_mode == "fit_to_customize":
             self.read_mode = "fit_to_width"
