@@ -48,11 +48,15 @@ class AppBuffer(Buffer):
 
         self.delete_temp_file = arguments == "temp_pdf_file"
 
-        self.synctex_page_num = None
-        if arguments.startswith("synctex_page_num"):
-            self.synctex_page_num = int(arguments.split("=")[1])
+        self.synctex_info = None
+        if arguments.startswith("synctex_info"):
+            synctex_info = arguments.split("=")[1].split(":")
+            page_num = int(synctex_info[0])
+            pos_x = float(synctex_info[1])
+            pos_y = float(synctex_info[2])
+            self.synctex_info = [page_num, pos_x, pos_y]
 
-        self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), buffer_id, self.synctex_page_num))
+        self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), buffer_id, self.synctex_info))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
 
         # Use thread to avoid slow down open speed.
@@ -139,7 +143,7 @@ class AppBuffer(Buffer):
             (scroll_offset, scale, read_mode, inverted_mode) = session_data.split(":")
         else:
             (scroll_offset, scale, read_mode, inverted_mode, rotation) = session_data.split(":")
-        if not self.synctex_page_num:
+        if not self.synctex_info:
             self.buffer_widget.scroll_offset = float(scroll_offset)
         self.buffer_widget.scale = float(scale)
         self.buffer_widget.read_mode = read_mode
@@ -151,8 +155,14 @@ class AppBuffer(Buffer):
     def jump_to_page(self):
         self.send_input_message("Jump to Page: ", "jump_page")
 
-    def jump_to_page_with_num(self, page_num):
-        self.buffer_widget.jump_to_page(int(page_num))
+    def jump_to_page_synctex(self, synctex_info):
+        synctex_info = synctex_info.split(":")
+        widget = self.buffer_widget
+        widget.synctex_page_num = int(synctex_info[0])
+        widget.synctex_pos_x = float(synctex_info[1])
+        widget.synctex_pos_y = float(synctex_info[2])
+        widget.jump_to_page(widget.synctex_page_num)
+        widget.update()
         return ""
 
     def jump_to_percent(self):
@@ -619,14 +629,18 @@ class PdfViewerWidget(QWidget):
 
     translate_double_click_word = QtCore.pyqtSignal(str)
 
-    def __init__(self, url, background_color, buffer_id, synctex_page_num):
+    def __init__(self, url, background_color, buffer_id, synctex_info):
         super(PdfViewerWidget, self).__init__()
 
         self.url = url
         self.config_dir = get_emacs_config_dir()
         self.background_color = background_color
         self.buffer_id = buffer_id
-        self.synctex_page_num = synctex_page_num
+
+        self.synctex_page_num = synctex_info[0]
+        self.synctex_pos_x = synctex_info[1]
+        self.synctex_pos_y = synctex_info[2]
+
         self.installEventFilter(self)
         self.setMouseTracking(True)
 
@@ -902,6 +916,14 @@ class PdfViewerWidget(QWidget):
         else:
             painter.setPen(inverted_color((self.theme_foreground_color)))
 
+        # Draw an indicate to synctex position
+        if self.synctex_pos_y and (self.synctex_pos_y > 0):
+            painter.drawText(QRect(10,
+                                   self.synctex_pos_y * self.scale,
+                                   80, 30),
+                             Qt.AlignLeft | Qt.AlignTop,
+                             "===>")
+
         # Update mode-line-position
         current_page = math.floor((self.start_page_index + self.last_page_index + 1) / 2)
         eval_in_emacs("eaf--pdf-update-position", [current_page, self.page_total_number])
@@ -916,6 +938,10 @@ class PdfViewerWidget(QWidget):
                                    self.rect().height() - self.page_annotate_padding_bottom),
                              Qt.AlignRight | Qt.AlignBottom,
                              "{0}% ({1}/{2})".format(progress_percent, current_page, self.page_total_number))
+
+    def clear_synctex_indicator(self):
+        # Assign y-position to -1 to clear the indicator
+        self.synctex_pos_y = -1.0
 
 
     def build_context_wrap(f):
@@ -943,6 +969,8 @@ class PdfViewerWidget(QWidget):
 
     @build_context_wrap
     def wheelEvent(self, event):
+        self.clear_synctex_indicator()
+
         if not event.accept():
             if event.angleDelta().y():
                 numSteps = event.angleDelta().y()
@@ -1025,47 +1053,57 @@ class PdfViewerWidget(QWidget):
     @interactive
     def scroll_up(self):
         self.update_vertical_offset(min(self.scroll_offset + self.scroll_step, self.max_scroll_offset()))
+        self.clear_synctex_indicator()
 
     @interactive
     def scroll_down(self):
         self.update_vertical_offset(max(self.scroll_offset - self.scroll_step, 0))
+        self.clear_synctex_indicator()
 
     @interactive
     def scroll_right(self):
         self.update_horizontal_offset(max(self.horizontal_offset - self.scroll_step, (self.rect().width() - self.page_width * self.scale) / 2))
+        self.clear_synctex_indicator()
 
     @interactive
     def scroll_left(self):
         self.update_horizontal_offset(min(self.horizontal_offset + self.scroll_step, (self.page_width * self.scale - self.rect().width()) / 2))
+        self.clear_synctex_indicator()
 
     @interactive
     def scroll_up_page(self):
         # Adjust scroll step to make users continue reading fluently.
         self.update_vertical_offset(min(self.scroll_offset + self.rect().height() - self.scroll_step, self.max_scroll_offset()))
+        self.clear_synctex_indicator()
 
     @interactive
     def scroll_down_page(self):
         # Adjust scroll step to make users continue reading fluently.
         self.update_vertical_offset(max(self.scroll_offset - self.rect().height() + self.scroll_step, 0))
+        self.clear_synctex_indicator()
 
     @interactive
     def scroll_to_begin(self):
         self.update_vertical_offset(0)
+        self.clear_synctex_indicator()
 
     @interactive
     def scroll_to_end(self):
         self.update_vertical_offset(self.max_scroll_offset())
+        self.clear_synctex_indicator()
 
     @interactive
     def zoom_in(self):
         self.read_mode = "fit_to_customize"
         self.scale_to(min(10, self.scale + 0.2))
+        self.clear_synctex_indicator()
         self.update()
 
     @interactive
     def zoom_out(self):
         self.read_mode = "fit_to_customize"
         self.scale_to(max(1, self.scale - 0.2))
+        self.clear_synctex_indicator()
         self.update()
 
     @interactive
@@ -1074,6 +1112,7 @@ class PdfViewerWidget(QWidget):
             self.cleanup_search()
         self.read_mode = read_mode
         self.update_scale()
+        self.clear_synctex_indicator()
         self.update()
 
     @interactive
