@@ -83,6 +83,11 @@
   :type 'boolean
   :group 'eaf-pdf-viewer)
 
+(defcustom eaf-pdf-show-progress-on-page t
+  "If it is t, pdf-viewer will show progress (in percentage) and page number directly on the document."
+  :type 'boolean
+  :group 'eaf-pdf-viewer)
+
 (defcustom eaf-pdf-dark-mode "follow"
   "Whether to enable inverted color rendering when starting the pdf-viewer app.
 
