@@ -902,15 +902,21 @@ class PdfViewerWidget(QWidget):
         else:
             painter.setPen(inverted_color((self.theme_foreground_color)))
 
-        # Draw progress.
-        progress_percent = int((self.start_page_index + 1) * 100 / self.page_total_number)
-        current_page = self.start_page_index + 1
-        painter.drawText(QRect(self.rect().x(),
-                               self.rect().y(),
-                               self.rect().width() - self.page_annotate_padding_right,
-                               self.rect().height() - self.page_annotate_padding_bottom),
-                         Qt.AlignRight | Qt.AlignBottom,
-                         "{0}% ({1}/{2})".format(progress_percent, current_page, self.page_total_number))
+        # Update mode-line-position
+        current_page = math.floor((self.start_page_index + self.last_page_index + 1) / 2)
+        eval_in_emacs("eaf--pdf-update-position", [current_page, self.page_total_number])
+
+        # Draw progress on page.
+        show_progress_on_page, = get_emacs_vars(["eaf-pdf-show-progress-on-page"])
+        if show_progress_on_page:
+            progress_percent = int((self.start_page_index + 1) * 100 / self.page_total_number)
+            painter.drawText(QRect(self.rect().x(),
+                                   self.rect().y(),
+                                   self.rect().width() - self.page_annotate_padding_right,
+                                   self.rect().height() - self.page_annotate_padding_bottom),
+                             Qt.AlignRight | Qt.AlignBottom,
+                             "{0}% ({1}/{2})".format(progress_percent, current_page, self.page_total_number))
+
 
     def build_context_wrap(f):
         def wrapper(*args):
@@ -1437,7 +1443,8 @@ class PdfViewerWidget(QWidget):
             self.scroll_offset = new_offset
             self.update()
 
-            eval_in_emacs("eaf--pdf-update-position", [self.start_page_index + 1, self.page_total_number])
+            current_page = math.floor((self.start_page_index + self.last_page_index + 1) / 2)
+            eval_in_emacs("eaf--pdf-update-position", [current_page, self.page_total_number])
 
     def update_horizontal_offset(self, new_offset):
         if self.horizontal_offset != new_offset:
