@@ -155,12 +155,16 @@ class AppBuffer(Buffer):
 
     def jump_to_page_synctex(self, synctex_info):
         synctex_info = synctex_info.split(":")
-        widget = self.buffer_widget
-        widget.synctex_page_num = int(synctex_info[0])
-        widget.synctex_pos_x = float(synctex_info[1])
-        widget.synctex_pos_y = float(synctex_info[2])
-        widget.jump_to_page(widget.synctex_page_num)
-        widget.update()
+        page_num = int(synctex_info[0])
+        pos_x = float(synctex_info[1])
+        pos_y = float(synctex_info[2])
+
+        self.buffer_widget.synctex_page_num = page_num
+        self.buffer_widget.jump_to_page(page_num)
+
+        self.buffer_widget.synctex_pos_x = pos_x
+        self.buffer_widget.synctex_pos_y = pos_y
+        self.buffer_widget.update()
         return ""
 
     def jump_to_percent(self):
@@ -901,17 +905,17 @@ class PdfViewerWidget(QWidget):
 
             painter.drawPixmap(rect, qpixmap)
 
+            # Draw an indicator for Synctex position
+            if self.synctex_page_num == index + 1 and self.synctex_pos_y != None:
+                indicator_pos_y = self.synctex_pos_y * self.scale
+                self.draw_synctex_indicator(painter, 15, indicator_pos_y)
+
             render_y += render_height
 
         # Clean unused pixmap cache that avoid use too much memory.
         self.clean_unused_page_cache_pixmap()
 
         painter.restore()
-
-        # Draw an indicator for Synctex position
-        if self.synctex_pos_y and (self.synctex_pos_y > 0):
-            indicator_pos_y = self.synctex_pos_y * self.scale
-            self.draw_synctex_indicator(painter, 15, indicator_pos_y)
 
         # Render current page.
         painter.setFont(self.font)
@@ -980,8 +984,6 @@ class PdfViewerWidget(QWidget):
 
     @build_context_wrap
     def wheelEvent(self, event):
-        self.clear_synctex_indicator()
-
         if not event.accept():
             if event.angleDelta().y():
                 numSteps = event.angleDelta().y()
