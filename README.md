@@ -28,6 +28,13 @@ Double click the left button to edit backward.
   <img width="800" src="./latex_screenshot.gif">
 </p>
 
+### Dark mode
+Default set background color to `emacs-background-color`
+
+Override this behavior
+```
+(setq eaf-pdf-dark-mode nil)
+```
 
 
 ### Dependency List
@@ -68,6 +75,7 @@ Double click the left button to edit backward.
 | `[` | save_current_pos |
 | `]` | jump_to_saved_pos |
 | `i` | toggle_inverted_mode |
+| `C-i` | toggle_inverted_image_mode |
 | `m` | toggle_mark_link |
 | `f` | jump_to_link |
 | `M-w` | copy_select |
