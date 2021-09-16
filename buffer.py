@@ -144,8 +144,6 @@ class AppBuffer(Buffer):
         self.buffer_widget.scale = float(scale)
         self.buffer_widget.read_mode = read_mode
         self.buffer_widget.rotation = int(rotation)
-        if self.pdf_dark_mode == "ignore":
-            self.buffer_widget.inverted_mode = inverted_mode == "True"
         self.buffer_widget.update()
 
     def jump_to_page(self):
@@ -516,52 +514,51 @@ class PdfPage(fitz.Page):
             self.page_width = self.page.CropBox.width
             self.page_height = self.page.CropBox.height
 
-    def get_qpixmap(self, scale, *args):
+    def get_qpixmap(self, scale, invert, invert_image=False):
         if self.isPDF:
             self.page.setCropBox(self.clip)
         pixmap = self.page.getPixmap(matrix=fitz.Matrix(scale, scale), alpha=True)
-        for fn in args:
-            fn(self.page, pixmap, scale)
+
+        if invert:
+            pixmap.invertIRect(pixmap.irect)
+
+        if invert_image and invert:
+            pixmap = self.with_invert_exclude_image(scale, pixmap)
 
         img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format_RGBA8888)
         qpixmap = QPixmap.fromImage(img)
         return qpixmap
 
-    def with_invert(self, invert, exclude_image=True):
-        if not invert:
-            return lambda page, pixmap, scale: None
+    def with_invert_exclude_image(self, scale, pixmap):
         # steps:
-        # First, make page all content is invert, include image and text
+        # First, make page all content is invert, include image and text.
         # if exclude image is True, will find the page all image, then get
         # each image rect. Finally, again invert all image rect.
-        def fn(page, pixmap, scale):
-            pixmap.invertIRect(pixmap.irect)
-            if not exclude_image:
-                return pixmap
 
-            # exclude image only support PDF document
-            imagelist = None
+        # exclude image only support PDF document
+        imagelist = None
+        try:
+            imagelist = self.page.getImageList(full=True)
+        except Exception:
+            # PyMupdf 1.14 not include argument 'full'.
+            imagelist = self.page.getImageList()
+
+        imagebboxlist = []
+        for image in imagelist:
             try:
-                imagelist = page.getImageList(full=True)
+                imagerect = self.page.getImageBbox(image)
+                if imagerect.isInfinite or imagerect.isEmpty:
+                    continue
+                else:
+                    imagebboxlist.append(imagerect)
             except Exception:
-                # PyMupdf 1.14 not include argument 'full'.
-                imagelist = page.getImageList()
+                pass
 
-            imagebboxlist = []
-            for image in imagelist:
-                try:
-                    imagerect = page.getImageBbox(image)
-                    if imagerect.isInfinite or imagerect.isEmpty:
-                        continue
-                    else:
-                        imagebboxlist.append(imagerect)
-                except Exception:
-                    pass
+        for bbox in imagebboxlist:
+            pixmap.invertIRect(bbox * self.page.rotationMatrix * scale)
 
-            for bbox in imagebboxlist:
-                pixmap.invertIRect(bbox * page.rotationMatrix * scale)
+        return pixmap
 
-        return fn
 
     def add_mark_link(self):
         if self.page.firstLink:
@@ -666,15 +663,12 @@ class PdfViewerWidget(QWidget):
         self.horizontal_offset = 0
 
         # Inverted mode.
-        self.inverted_mode = False
-        if (self.pdf_dark_mode == "force" or \
-            self.pdf_dark_mode == True or \
-            ((self.pdf_dark_mode == "follow" or self.pdf_dark_mode == "ignore") and \
-             self.theme_mode == "dark")):
-            self.inverted_mode = True
+        self.inverted_mode = True
+        if self.theme_mode != "dark" and self.theme_mode != "force":
+            self.inverted_mode = False
 
         # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
-        self.inverted_mode_exclude_image = self.pdf_dark_exclude_image and self.document.isPDF
+        self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.isPDF
 
         # mark link
         self.is_mark_link = False
@@ -813,7 +807,7 @@ class PdfViewerWidget(QWidget):
             page.cleanup_jump_link_tips()
             self.jump_link_key_cache_dict.clear()
 
-        qpixmap = page.get_qpixmap(scale, page.with_invert(self.inverted_mode, self.inverted_mode_exclude_image))
+        qpixmap = page.get_qpixmap(scale, self.inverted_mode, self.inverted_image_mode)
 
         self.page_cache_pixmap_dict[index] = qpixmap
         self.document.cache_page(index, page)
@@ -854,7 +848,7 @@ class PdfViewerWidget(QWidget):
             painter.setBrush(color)
             painter.setPen(color)
         else:
-            color = QColor(20, 20, 20, 255) if self.inverted_mode else self.background_color
+            color = QColor(20, 20, 20, 255) if self.inverted_mode else Qt.white
             painter.setBrush(color)
             painter.setPen(color)
 
@@ -1095,19 +1089,19 @@ class PdfViewerWidget(QWidget):
         # Need clear page cache first, otherwise current page will not inverted until next page.
         self.page_cache_pixmap_dict.clear()
 
-        # Toggle inverted status.
+        self.inverted_mode = not self.inverted_mode
+        self.update()
+        return
+
+    @interactive
+    def toggle_inverted_image_mode(self):
+        # Toggle inverted image status.
         if not self.document.isPDF:
-            self.inverted_mode = not self.inverted_mode
-            self.update()
+            message_to_emacs("Only support PDF!")
             return
 
-        if self.inverted_mode_exclude_image:
-            self.inverted_mode_exclude_image = False
-        elif self.inverted_mode:
-            self.inverted_mode = False
-        else:
-            self.inverted_mode_exclude_image = True
-            self.inverted_mode = True
+        self.page_cache_pixmap_dict.clear()
+        self.inverted_image_mode = not self.inverted_image_mode
 
         # Re-render page.
         self.update()

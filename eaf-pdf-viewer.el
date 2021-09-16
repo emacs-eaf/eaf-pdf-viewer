@@ -151,6 +151,7 @@ Non-nil means don't invert images."
     ("[" . "save_current_pos")
     ("]" . "jump_to_saved_pos")
     ("i" . "toggle_inverted_mode")
+    ("C-i" . "toggle_inverted_image_mode")
     ("m" . "toggle_mark_link")
     ("f" . "jump_to_link")
     ("M-w" . "copy_select")
