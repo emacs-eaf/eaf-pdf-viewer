@@ -914,7 +914,6 @@ class PdfViewerWidget(QWidget):
 
         # Clean unused pixmap cache that avoid use too much memory.
         self.clean_unused_page_cache_pixmap()
-
         painter.restore()
 
         # Render current page.
@@ -925,20 +924,8 @@ class PdfViewerWidget(QWidget):
         else:
             painter.setPen(inverted_color((self.theme_foreground_color)))
 
-        # Update mode-line-position
-        current_page = math.floor((self.start_page_index + self.last_page_index + 1) / 2)
-        eval_in_emacs("eaf--pdf-update-position", [current_page, self.page_total_number])
-
-        # Draw progress on page.
-        show_progress_on_page, = get_emacs_vars(["eaf-pdf-show-progress-on-page"])
-        if show_progress_on_page:
-            progress_percent = int((self.start_page_index + 1) * 100 / self.page_total_number)
-            painter.drawText(QRect(self.rect().x(),
-                                   self.rect().y(),
-                                   self.rect().width() - self.page_annotate_padding_right,
-                                   self.rect().height() - self.page_annotate_padding_bottom),
-                             Qt.AlignRight | Qt.AlignBottom,
-                             "{0}% ({1}/{2})".format(progress_percent, current_page, self.page_total_number))
+        # Update page progress
+        self.update_page_progress(painter)
 
     def draw_synctex_indicator(self, painter, x, y):
         painter.save()
@@ -953,11 +940,27 @@ class PdfViewerWidget(QWidget):
         painter.drawPolygon(arrow)
         painter.restore()
 
-
     def clear_synctex_indicator(self):
         # Assign y-position to -1 to clear the indicator
         self.synctex_pos_y = None
 
+    def update_page_progress(self, painter):
+        # Show in mode-line-position
+        current_page = math.floor((self.start_page_index +
+                                   self.last_page_index + 1) / 2)
+        eval_in_emacs("eaf--pdf-update-position",
+                      [current_page, self.page_total_number])
+
+        # Draw progress on page.
+        show_progress_on_page, = get_emacs_vars(["eaf-pdf-show-progress-on-page"])
+        if show_progress_on_page:
+            progress_percent = int(current_page * 100 / self.page_total_number)
+            painter.drawText(QRect(self.rect().x(),
+                                   self.rect().y(),
+                                   self.rect().width() - self.page_annotate_padding_right,
+                                   self.rect().height() - self.page_annotate_padding_bottom),
+                             Qt.AlignRight | Qt.AlignBottom,
+                             "{0}% ({1}/{2})".format(progress_percent, current_page, self.page_total_number))
 
     def build_context_wrap(f):
         def wrapper(*args):
