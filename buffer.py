@@ -20,9 +20,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from PyQt5 import QtCore
-from PyQt5.QtCore import Qt, QRect, QEvent, QTimer, QFileSystemWatcher
+from PyQt5.QtCore import Qt, QRect, QPoint, QEvent, QTimer, QFileSystemWatcher
 from PyQt5.QtGui import QColor, QPixmap, QImage, QFont, QCursor
-from PyQt5.QtGui import QPainter
+from PyQt5.QtGui import QPainter, QPolygon
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
@@ -48,7 +48,7 @@ class AppBuffer(Buffer):
 
         self.delete_temp_file = arguments == "temp_pdf_file"
 
-        self.synctex_info = None
+        self.synctex_info = [None, None, None]
         if arguments.startswith("synctex_info"):
             synctex_info = arguments.split("=")[1].split(":")
             page_num = int(synctex_info[0])
@@ -908,6 +908,11 @@ class PdfViewerWidget(QWidget):
 
         painter.restore()
 
+        # Draw an indicator for Synctex position
+        if self.synctex_pos_y and (self.synctex_pos_y > 0):
+            indicator_pos_y = self.synctex_pos_y * self.scale
+            self.draw_synctex_indicator(painter, 15, indicator_pos_y)
+
         # Render current page.
         painter.setFont(self.font)
 
@@ -915,14 +920,6 @@ class PdfViewerWidget(QWidget):
             painter.setPen(inverted_color((self.theme_foreground_color), True))
         else:
             painter.setPen(inverted_color((self.theme_foreground_color)))
-
-        # Draw an indicate to synctex position
-        if self.synctex_pos_y and (self.synctex_pos_y > 0):
-            painter.drawText(QRect(10,
-                                   self.synctex_pos_y * self.scale,
-                                   80, 30),
-                             Qt.AlignLeft | Qt.AlignTop,
-                             "===>")
 
         # Update mode-line-position
         current_page = math.floor((self.start_page_index + self.last_page_index + 1) / 2)
@@ -939,9 +936,23 @@ class PdfViewerWidget(QWidget):
                              Qt.AlignRight | Qt.AlignBottom,
                              "{0}% ({1}/{2})".format(progress_percent, current_page, self.page_total_number))
 
+    def draw_synctex_indicator(self, painter, x, y):
+        painter.save()
+        arrow = QPolygon([QPoint(x, y), QPoint(x+26, y), QPoint(x+26, y-5),
+                          QPoint(x+35, y+5),
+                          QPoint(x+26, y+15), QPoint(x+26, y+10), QPoint(x, y+10),
+                          QPoint(x, y)])
+        fillColor = QColor(236, 96, 31, 255)
+        borderColor = QColor(255, 91, 15, 255)
+        painter.setBrush(fillColor)
+        painter.setPen(borderColor)
+        painter.drawPolygon(arrow)
+        painter.restore()
+
+
     def clear_synctex_indicator(self):
         # Assign y-position to -1 to clear the indicator
-        self.synctex_pos_y = -1.0
+        self.synctex_pos_y = None
 
 
     def build_context_wrap(f):
@@ -1053,57 +1064,47 @@ class PdfViewerWidget(QWidget):
     @interactive
     def scroll_up(self):
         self.update_vertical_offset(min(self.scroll_offset + self.scroll_step, self.max_scroll_offset()))
-        self.clear_synctex_indicator()
 
     @interactive
     def scroll_down(self):
         self.update_vertical_offset(max(self.scroll_offset - self.scroll_step, 0))
-        self.clear_synctex_indicator()
 
     @interactive
     def scroll_right(self):
         self.update_horizontal_offset(max(self.horizontal_offset - self.scroll_step, (self.rect().width() - self.page_width * self.scale) / 2))
-        self.clear_synctex_indicator()
 
     @interactive
     def scroll_left(self):
         self.update_horizontal_offset(min(self.horizontal_offset + self.scroll_step, (self.page_width * self.scale - self.rect().width()) / 2))
-        self.clear_synctex_indicator()
 
     @interactive
     def scroll_up_page(self):
         # Adjust scroll step to make users continue reading fluently.
         self.update_vertical_offset(min(self.scroll_offset + self.rect().height() - self.scroll_step, self.max_scroll_offset()))
-        self.clear_synctex_indicator()
 
     @interactive
     def scroll_down_page(self):
         # Adjust scroll step to make users continue reading fluently.
         self.update_vertical_offset(max(self.scroll_offset - self.rect().height() + self.scroll_step, 0))
-        self.clear_synctex_indicator()
 
     @interactive
     def scroll_to_begin(self):
         self.update_vertical_offset(0)
-        self.clear_synctex_indicator()
 
     @interactive
     def scroll_to_end(self):
         self.update_vertical_offset(self.max_scroll_offset())
-        self.clear_synctex_indicator()
 
     @interactive
     def zoom_in(self):
         self.read_mode = "fit_to_customize"
         self.scale_to(min(10, self.scale + 0.2))
-        self.clear_synctex_indicator()
         self.update()
 
     @interactive
     def zoom_out(self):
         self.read_mode = "fit_to_customize"
         self.scale_to(max(1, self.scale - 0.2))
-        self.clear_synctex_indicator()
         self.update()
 
     @interactive
@@ -1112,7 +1113,6 @@ class PdfViewerWidget(QWidget):
             self.cleanup_search()
         self.read_mode = read_mode
         self.update_scale()
-        self.clear_synctex_indicator()
         self.update()
 
     @interactive
