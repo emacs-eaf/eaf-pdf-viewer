@@ -519,11 +519,11 @@ class PdfPage(fitz.Page):
     def get_qpixmap(self, scale, *args):
         if self.isPDF:
             self.page.setCropBox(self.clip)
-        pixmap = self.page.getPixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
+        pixmap = self.page.getPixmap(matrix=fitz.Matrix(scale, scale), alpha=True)
         for fn in args:
             fn(self.page, pixmap, scale)
 
-        img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format_RGB888)
+        img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format_RGBA8888)
         qpixmap = QPixmap.fromImage(img)
         return qpixmap
 
@@ -813,11 +813,6 @@ class PdfViewerWidget(QWidget):
             page.cleanup_jump_link_tips()
             self.jump_link_key_cache_dict.clear()
 
-        if self.pdf_dark_mode == "follow" and self.document.isPDF:
-            color = inverted_color(self.theme_background_color, self.inverted_mode)
-            col = (color.redF(), color.greenF(), color.blueF())
-            page.drawRect(page.CropBox, color=col, fill=col, overlay=False)
-
         qpixmap = page.get_qpixmap(scale, page.with_invert(self.inverted_mode, self.inverted_mode_exclude_image))
 
         self.page_cache_pixmap_dict[index] = qpixmap
@@ -848,15 +843,20 @@ class PdfViewerWidget(QWidget):
 
         # Init painter.
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceAtop)
         painter.save()
 
         # Draw background.
-        background_color = self.background_color
-        if self.inverted_mode: # change color of background if inverted mode is enable
-            background_color = QColor(20, 20, 20, 255)
-        painter.setBrush(background_color)
-        painter.setPen(background_color)
-        painter.drawRect(0, 0, self.rect().width(), self.rect().height())
+        # change color of background if inverted mode is enable
+        if self.pdf_dark_mode == "follow":
+            color = QColor(self.theme_background_color)
+            painter.setBrush(color)
+            painter.setPen(color)
+        else:
+            color = QColor(20, 20, 20, 255) if self.inverted_mode else self.background_color
+            painter.setBrush(color)
+            painter.setPen(color)
 
         if self.scroll_offset > self.max_scroll_offset():
             self.update_vertical_offset(self.max_scroll_offset())
@@ -883,9 +883,15 @@ class PdfViewerWidget(QWidget):
 
             # Draw page image.
             if self.read_mode == "fit_to_customize" and render_width >= self.rect().width():
-                render_x = max(min(render_x + self.horizontal_offset, 0), self.rect().width() - render_width) # limit the visiable area size
+                # limit the visiable area size
+                render_x = max(min(render_x + self.horizontal_offset, 0), self.rect().width() - render_width)
 
-            painter.drawPixmap(QRect(render_x, render_y, render_width, render_height), qpixmap)
+            rect = QRect(render_x, render_y, render_width, render_height)
+
+            # draw rectangle with current pen and brush color
+            painter.drawRect(rect)
+
+            painter.drawPixmap(rect, qpixmap)
 
             render_y += render_height
 
