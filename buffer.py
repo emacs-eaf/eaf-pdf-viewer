@@ -20,9 +20,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from PyQt5 import QtCore
-from PyQt5.QtCore import Qt, QRect, QEvent, QTimer, QFileSystemWatcher
+from PyQt5.QtCore import Qt, QRect, QPoint, QEvent, QTimer, QFileSystemWatcher
 from PyQt5.QtGui import QColor, QPixmap, QImage, QFont, QCursor
-from PyQt5.QtGui import QPainter
+from PyQt5.QtGui import QPainter, QPolygon, QPalette
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
@@ -48,11 +48,15 @@ class AppBuffer(Buffer):
 
         self.delete_temp_file = arguments == "temp_pdf_file"
 
-        self.synctex_page_num = None
-        if arguments.startswith("synctex_page_num"):
-            self.synctex_page_num = int(arguments.split("=")[1])
+        self.synctex_info = [None, None, None]
+        if arguments.startswith("synctex_info"):
+            synctex_info = arguments.split("=")[1].split(":")
+            page_num = int(synctex_info[0])
+            pos_x = float(synctex_info[1])
+            pos_y = float(synctex_info[2])
+            self.synctex_info = [page_num, pos_x, pos_y]
 
-        self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), buffer_id, self.synctex_page_num))
+        self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), buffer_id, self.synctex_info))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
 
         # Use thread to avoid slow down open speed.
@@ -139,7 +143,7 @@ class AppBuffer(Buffer):
             (scroll_offset, scale, read_mode, inverted_mode) = session_data.split(":")
         else:
             (scroll_offset, scale, read_mode, inverted_mode, rotation) = session_data.split(":")
-        if not self.synctex_page_num:
+        if not self.synctex_info:
             self.buffer_widget.scroll_offset = float(scroll_offset)
         self.buffer_widget.scale = float(scale)
         self.buffer_widget.read_mode = read_mode
@@ -149,8 +153,16 @@ class AppBuffer(Buffer):
     def jump_to_page(self):
         self.send_input_message("Jump to Page: ", "jump_page")
 
-    def jump_to_page_with_num(self, page_num):
-        self.buffer_widget.jump_to_page(int(page_num))
+    def jump_to_page_synctex(self, synctex_info):
+        synctex_info = synctex_info.split(":")
+
+        page_num = int(synctex_info[0])
+        self.buffer_widget.synctex_page_num = page_num
+        self.buffer_widget.jump_to_page(page_num)
+
+        self.buffer_widget.synctex_pos_x = float(synctex_info[1])
+        self.buffer_widget.synctex_pos_y = float(synctex_info[2])
+        self.buffer_widget.update()
         return ""
 
     def jump_to_percent(self):
@@ -616,14 +628,18 @@ class PdfViewerWidget(QWidget):
 
     translate_double_click_word = QtCore.pyqtSignal(str)
 
-    def __init__(self, url, background_color, buffer_id, synctex_page_num):
+    def __init__(self, url, background_color, buffer_id, synctex_info):
         super(PdfViewerWidget, self).__init__()
 
         self.url = url
         self.config_dir = get_emacs_config_dir()
         self.background_color = background_color
         self.buffer_id = buffer_id
-        self.synctex_page_num = synctex_page_num
+
+        self.synctex_page_num = synctex_info[0]
+        self.synctex_pos_x = synctex_info[1]
+        self.synctex_pos_y = synctex_info[2]
+
         self.installEventFilter(self)
         self.setMouseTracking(True)
 
@@ -713,6 +729,12 @@ class PdfViewerWidget(QWidget):
         # Padding between pages.
         self.page_padding = 10
 
+        # Fill app background color
+        pal = self.palette()
+        pal.setColor(QPalette.Background, self.background_color)
+        self.setAutoFillBackground(True)
+        self.setPalette(pal)
+
         # Init font.
         self.page_annotate_padding_right = 10
         self.page_annotate_padding_bottom = 10
@@ -738,7 +760,7 @@ class PdfViewerWidget(QWidget):
         self.last_page_index = 0
 
         # synctex init page
-        if self.synctex_page_num:
+        if self.synctex_page_num != None:
             self.jump_to_page(self.synctex_page_num)
 
     @interactive
@@ -887,11 +909,15 @@ class PdfViewerWidget(QWidget):
 
             painter.drawPixmap(rect, qpixmap)
 
+            # Draw an indicator for synctex position
+            if self.synctex_page_num == index + 1 and self.synctex_pos_y != None:
+                indicator_pos_y = self.synctex_pos_y * self.scale
+                self.draw_synctex_indicator(painter, 15, indicator_pos_y)
+
             render_y += render_height
 
         # Clean unused pixmap cache that avoid use too much memory.
         self.clean_unused_page_cache_pixmap()
-
         painter.restore()
 
         # Render current page.
@@ -902,21 +928,44 @@ class PdfViewerWidget(QWidget):
         else:
             painter.setPen(inverted_color((self.theme_foreground_color)))
 
-        # Update mode-line-position
-        current_page = math.floor((self.start_page_index + self.last_page_index + 1) / 2)
-        eval_in_emacs("eaf--pdf-update-position", [current_page, self.page_total_number])
+        # Update page progress
+        self.update_page_progress(painter)
+
+    def draw_synctex_indicator(self, painter, x, y):
+        painter.save()
+        arrow = QPolygon([QPoint(x, y), QPoint(x+26, y), QPoint(x+26, y-5),
+                          QPoint(x+35, y+5),
+                          QPoint(x+26, y+15), QPoint(x+26, y+10), QPoint(x, y+10),
+                          QPoint(x, y)])
+        fillColor = QColor(236, 96, 31, 255)
+        borderColor = QColor(255, 91, 15, 255)
+        painter.setBrush(fillColor)
+        painter.setPen(borderColor)
+        painter.drawPolygon(arrow)
+        QtCore.QTimer().singleShot(5000, self.reset_synctex_indicator)
+        painter.restore()
+
+    def reset_synctex_indicator(self):
+        self.synctex_pos_x = None
+        self.synctex_pos_y = None
+
+    def update_page_progress(self, painter):
+        # Show in mode-line-position
+        current_page = math.floor((self.start_page_index +
+                                   self.last_page_index + 1) / 2)
+        eval_in_emacs("eaf--pdf-update-position",
+                      [current_page, self.page_total_number])
 
         # Draw progress on page.
         show_progress_on_page, = get_emacs_vars(["eaf-pdf-show-progress-on-page"])
         if show_progress_on_page:
-            progress_percent = int((self.start_page_index + 1) * 100 / self.page_total_number)
+            progress_percent = int(current_page * 100 / self.page_total_number)
             painter.drawText(QRect(self.rect().x(),
                                    self.rect().y(),
                                    self.rect().width() - self.page_annotate_padding_right,
                                    self.rect().height() - self.page_annotate_padding_bottom),
                              Qt.AlignRight | Qt.AlignBottom,
                              "{0}% ({1}/{2})".format(progress_percent, current_page, self.page_total_number))
-
 
     def build_context_wrap(f):
         def wrapper(*args):
