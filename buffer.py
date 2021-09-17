@@ -48,17 +48,19 @@ class AppBuffer(Buffer):
 
         self.delete_temp_file = arguments == "temp_pdf_file"
 
-        self.synctex_info = [None, None, None, None]
+        self.synctex_info = [None, None, None]
         if arguments.startswith("synctex_info"):
             synctex_info = arguments.split("=")[1].split(":")
             page_num = int(synctex_info[0])
             pos_x = float(synctex_info[1])
             pos_y = float(synctex_info[2])
-            sync_time = time.time()
-            self.synctex_info = [page_num, pos_x, pos_y, sync_time]
+            self.synctex_info = [page_num, pos_x, pos_y]
 
         self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), buffer_id, self.synctex_info))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
+
+        # if arguments.startswith("synctex_info"):
+        #     self.buffer_widget.QTimer.singleShot(5, self.buffer_widget.reset_synctex_indicator)
 
         # Use thread to avoid slow down open speed.
         threading.Thread(target=self.record_open_history).start()
@@ -163,9 +165,9 @@ class AppBuffer(Buffer):
 
         self.buffer_widget.synctex_pos_x = float(synctex_info[1])
         self.buffer_widget.synctex_pos_y = float(synctex_info[2])
-
-        self.buffer_widget.synctex_time = time.time()
         self.buffer_widget.update()
+
+        QTimer.singleShot(5, self.buffer_widget.reset_synctex_indicator)
         return ""
 
     def jump_to_percent(self):
@@ -642,7 +644,6 @@ class PdfViewerWidget(QWidget):
         self.synctex_page_num = synctex_info[0]
         self.synctex_pos_x = synctex_info[1]
         self.synctex_pos_y = synctex_info[2]
-        self.synctex_time = synctex_info[3]
 
         self.installEventFilter(self)
         self.setMouseTracking(True)
@@ -918,10 +919,6 @@ class PdfViewerWidget(QWidget):
         self.clean_unused_page_cache_pixmap()
         painter.restore()
 
-        # Clear synctex indicator after a timeout
-        if self.synctex_time != None and time.time() - self.synctex_time > 5:
-            self.reset_synctex_indicator()
-
         # Render current page.
         painter.setFont(self.font)
 
@@ -949,7 +946,6 @@ class PdfViewerWidget(QWidget):
     def reset_synctex_indicator(self):
         self.synctex_pos_x = None
         self.synctex_pos_y = None
-        self.synctex_time = None
 
     def update_page_progress(self, painter):
         # Show in mode-line-position
