@@ -22,7 +22,7 @@
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt, QRect, QPoint, QEvent, QTimer, QFileSystemWatcher
 from PyQt5.QtGui import QColor, QPixmap, QImage, QFont, QCursor
-from PyQt5.QtGui import QPainter, QPolygon
+from PyQt5.QtGui import QPainter, QPolygon, QPalette
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
@@ -728,6 +728,12 @@ class PdfViewerWidget(QWidget):
 
         # Padding between pages.
         self.page_padding = 10
+
+        # Fill app background color
+        pal = self.palette()
+        pal.setColor(QPalette.Background, self.background_color)
+        self.setAutoFillBackground(True)
+        self.setPalette(pal)
 
         # Init font.
         self.page_annotate_padding_right = 10
