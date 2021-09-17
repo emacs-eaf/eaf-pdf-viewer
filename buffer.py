@@ -49,7 +49,6 @@ class AppBuffer(Buffer):
         self.delete_temp_file = arguments == "temp_pdf_file"
 
         self.synctex_info = [None, None, None]
-        self.synctex_timer = QTimer()
         if arguments.startswith("synctex_info"):
             synctex_info = arguments.split("=")[1].split(":")
             page_num = int(synctex_info[0])
@@ -59,9 +58,6 @@ class AppBuffer(Buffer):
 
         self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), buffer_id, self.synctex_info))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
-
-        if arguments.startswith("synctex_info"):
-            self.synctex_timer.singleShot(5000, self.buffer_widget.reset_synctex_indicator)
 
         # Use thread to avoid slow down open speed.
         threading.Thread(target=self.record_open_history).start()
@@ -167,8 +163,6 @@ class AppBuffer(Buffer):
         self.buffer_widget.synctex_pos_x = float(synctex_info[1])
         self.buffer_widget.synctex_pos_y = float(synctex_info[2])
         self.buffer_widget.update()
-
-        self.synctex_timer.singleShot(5000, self.buffer_widget.reset_synctex_indicator)
         return ""
 
     def jump_to_percent(self):
@@ -942,6 +936,7 @@ class PdfViewerWidget(QWidget):
         painter.setBrush(fillColor)
         painter.setPen(borderColor)
         painter.drawPolygon(arrow)
+        QtCore.QTimer().singleShot(5000, self.reset_synctex_indicator)
         painter.restore()
 
     def reset_synctex_indicator(self):
