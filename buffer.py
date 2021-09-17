@@ -143,7 +143,7 @@ class AppBuffer(Buffer):
             (scroll_offset, scale, read_mode, inverted_mode) = session_data.split(":")
         else:
             (scroll_offset, scale, read_mode, inverted_mode, rotation) = session_data.split(":")
-        if not self.synctex_info:
+        if self.synctex_info[0] == None:
             self.buffer_widget.scroll_offset = float(scroll_offset)
         self.buffer_widget.scale = float(scale)
         self.buffer_widget.read_mode = read_mode
@@ -942,10 +942,11 @@ class PdfViewerWidget(QWidget):
         painter.setBrush(fillColor)
         painter.setPen(borderColor)
         painter.drawPolygon(arrow)
-        QtCore.QTimer().singleShot(5000, self.reset_synctex_indicator)
+        QtCore.QTimer().singleShot(5000, self.clear_synctex_info)
         painter.restore()
 
-    def reset_synctex_indicator(self):
+    def clear_synctex_info(self):
+        self.synctex_page = None
         self.synctex_pos_x = None
         self.synctex_pos_y = None
 
