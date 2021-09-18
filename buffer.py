@@ -1672,7 +1672,7 @@ class PdfViewerWidget(QWidget):
             self.disable_inline_text_annot_mode()
             if event.button() == Qt.RightButton:
                 self.handle_translate_word()
-            elif event.button() == Qt.LeftButton and self.synctex_page_num:
+            elif event.button() == Qt.LeftButton:
                 self.handle_synctex_backward_edit()
                 return True
 
