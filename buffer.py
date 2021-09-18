@@ -721,6 +721,7 @@ class PdfViewerWidget(QWidget):
         self.popup_text_annot_timer.setSingleShot(True)
         self.popup_text_annot_timer.timeout.connect(self.handle_popup_text_annot_mode)
         self.is_popup_text_annot_mode = False
+        self.is_popup_text_annot_handler_waiting = False
         self.popup_text_annot_pos = (None, None)
         # inline text annot
         self.inline_text_annot_timer = QTimer()
@@ -728,6 +729,7 @@ class PdfViewerWidget(QWidget):
         self.inline_text_annot_timer.setSingleShot(True)
         self.inline_text_annot_timer.timeout.connect(self.handle_inline_text_annot_mode)
         self.is_inline_text_annot_mode = False
+        self.is_inline_text_annot_handler_waiting = False
         self.inline_text_annot_pos = (None, None)
 
         # Init scroll attributes.
@@ -1549,6 +1551,7 @@ class PdfViewerWidget(QWidget):
         return 100.0 * self.scroll_offset / (self.max_scroll_offset() + self.rect().height())
 
     def update_vertical_offset(self, new_offset):
+        eval_in_emacs("eaf--clear-message", [])
         if self.scroll_offset != new_offset:
             self.scroll_offset = new_offset
             self.update()
@@ -1557,6 +1560,7 @@ class PdfViewerWidget(QWidget):
             eval_in_emacs("eaf--pdf-update-position", [current_page, self.page_total_number])
 
     def update_horizontal_offset(self, new_offset):
+        eval_in_emacs("eaf--clear-message", [])
         if self.horizontal_offset != new_offset:
             self.horizontal_offset = new_offset
             self.update()
@@ -1658,10 +1662,12 @@ class PdfViewerWidget(QWidget):
             # Capture move event, event without holding down the mouse.
             self.setMouseTracking(True)
             self.releaseMouse()
-            if not self.popup_text_annot_timer.isActive():
+            if not self.popup_text_annot_timer.isActive() and \
+               self.is_popup_text_annot_handler_waiting:
                 self.popup_text_annot_timer.start()
 
-            if not self.inline_text_annot_timer.isActive():
+            if not self.inline_text_annot_timer.isActive() and \
+               self.is_inline_text_annot_handler_waiting:
                 self.inline_text_annot_timer.start()
 
             if platform.system() == "Darwin":
@@ -1680,14 +1686,17 @@ class PdfViewerWidget(QWidget):
 
     def enable_popup_text_annot_mode(self):
         self.is_popup_text_annot_mode = True
+        self.is_popup_text_annot_handler_waiting = True
         self.popup_text_annot_pos = (None, None)
 
     def disable_popup_text_annot_mode(self):
         self.is_popup_text_annot_mode = False
+        self.is_popup_text_annot_handler_waiting = False
 
     def handle_popup_text_annot_mode(self):
         if self.is_popup_text_annot_mode:
             # self.disable_popup_text_annot_mode()
+            self.is_popup_text_annot_handler_waiting = False
             ex, ey, page_index = self.get_cursor_absolute_position()
             self.popup_text_annot_pos = (fitz.Point(ex, ey), page_index)
 
@@ -1695,14 +1704,17 @@ class PdfViewerWidget(QWidget):
 
     def enable_inline_text_annot_mode(self):
         self.is_inline_text_annot_mode = True
+        self.is_inline_text_annot_handler_waiting = True
         self.inline_text_annot_pos = (None, None)
 
     def disable_inline_text_annot_mode(self):
         self.is_inline_text_annot_mode = False
+        self.is_inline_text_annot_handler_waiting = False
 
     def handle_inline_text_annot_mode(self):
         if self.is_inline_text_annot_mode:
             # self.disable_inline_text_annot_mode()
+            self.is_inline_text_annot_handler_waiting = False
             ex, ey, page_index = self.get_cursor_absolute_position()
             self.inline_text_annot_pos = (fitz.Point(ex, ey), page_index)
 
