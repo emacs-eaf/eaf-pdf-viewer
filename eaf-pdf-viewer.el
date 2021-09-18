@@ -119,8 +119,18 @@ Non-nil means don't invert images."
   :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-marker-fontsize 8
-  "The fontsize used by pdf marker."
+  "The font size used by pdf marker."
   :type 'integer
+  :group 'eaf-pdf-viewer)
+
+(defcustom eaf-pdf-inline-text-annot-fontsize 8
+  "The font size used by pdf inline text annot."
+  :type 'integer
+  :group 'eaf-pdf-viewer)
+
+(defcustom eaf-pdf-inline-text-annot-color "#ec3f00"
+  "The color used by pdf inline text annot."
+  :type 'string
   :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-viewer-keybinding
@@ -165,7 +175,9 @@ Non-nil means don't invert images."
     ("M-u" . "add_annot_underline")
     ("M-s" . "add_annot_squiggly")
     ("M-d" . "add_annot_strikeout_or_delete_annot")
-    ("M-e" . "add_annot_text_or_edit_annot")
+    ("M-t" . "add_annot_popup_text")
+    ("M-T" . "add_annot_inline_text")
+    ("M-e" . "edit_annot_text")
     ("M-p" . "toggle_presentation_mode")
     ("J" . "select_left_tab")
     ("K" . "select_right_tab")
