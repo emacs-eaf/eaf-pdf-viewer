@@ -1504,17 +1504,15 @@ class PdfViewerWidget(QWidget):
                     annot.setOpacity(opacity)
                     annot.update()
 
-            if print_msg:
-                if not is_hover_annot:
-                    eval_in_emacs("eaf--clear-message", [])
-                elif is_hover_tex_annot:
-                    message_to_emacs("[M-d]Delete annot [M-e]Edit text annot [M-r]Move text annot")
-                else:
-                    message_to_emacs("[M-d]Delete annot")
-
-
-            # update only if changed
+            # update and print message only if changed
             if is_hover_annot != self.is_hover_annot:
+                if print_msg:
+                    if not is_hover_annot:
+                        eval_in_emacs("eaf--clear-message", [])
+                    elif is_hover_tex_annot:
+                        message_to_emacs("[M-d]Delete annot [M-e]Edit text annot [M-r]Move text annot")
+                    else:
+                        message_to_emacs("[M-d]Delete annot")
                 self.is_hover_annot = is_hover_annot
                 self.page_cache_pixmap_dict.clear()
                 self.update()
