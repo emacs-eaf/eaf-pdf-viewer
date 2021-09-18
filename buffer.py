@@ -252,11 +252,19 @@ class AppBuffer(Buffer):
         elif self.buffer_widget.is_hover_annot:
             self.buffer_widget.annot_handler("edit")
 
+    def move_annot_text(self):
+        if self.buffer_widget.is_select_mode:
+            atomic_edit(self.buffer_id, "")
+        elif self.buffer_widget.is_hover_annot:
+            message_to_emacs("Move text annot: left-click mouse to choose a target position.")
+            self.buffer_widget.annot_handler("move")
+
     def set_focus_text(self, new_text):
         if self.buffer_widget.is_select_mode:
             self.buffer_widget.annot_select_char_area("text", new_text)
         elif self.buffer_widget.is_hover_annot:
-            self.buffer_widget.update_annot_text(new_text)
+            if self.buffer_widget.edited_annot_page[0] != None:
+                self.buffer_widget.edit_annot_text(new_text)
         elif self.buffer_widget.is_popup_text_annot_mode:
             self.buffer_widget.annot_popup_text_annot(new_text)
         elif self.buffer_widget.is_inline_text_annot_mode:
@@ -714,7 +722,8 @@ class PdfViewerWidget(QWidget):
 
         # text annot
         self.is_hover_annot = False
-        self.edited_page_annot = (None, None)
+        self.edited_annot_page = (None, None)
+        self.moved_annot_page = (None, None)
         # popup text annot
         self.popup_text_annot_timer = QTimer()
         self.popup_text_annot_timer.setInterval(300)
@@ -731,6 +740,14 @@ class PdfViewerWidget(QWidget):
         self.is_inline_text_annot_mode = False
         self.is_inline_text_annot_handler_waiting = False
         self.inline_text_annot_pos = (None, None)
+        # move text annot
+        self.move_text_annot_timer = QTimer()
+        self.move_text_annot_timer.setInterval(300)
+        self.move_text_annot_timer.setSingleShot(True)
+        self.move_text_annot_timer.timeout.connect(self.handle_move_text_annot_mode)
+        self.is_move_text_annot_mode = False
+        self.is_move_text_annot_handler_waiting = False
+        self.move_text_annot_pos = (None, None)
 
         # Init scroll attributes.
         self.scroll_offset = 0
@@ -1451,8 +1468,11 @@ class PdfViewerWidget(QWidget):
         page = self.document[page_index]
         return page.annots(types)
 
-    def hover_annot(self):
+    def hover_annot(self, print_msg):
         try:
+            if self.is_move_text_annot_mode:
+                return None, None
+
             ex, ey, page_index = self.get_cursor_absolute_position()
             page = self.document[page_index]
             annot = page.firstAnnot
@@ -1465,24 +1485,33 @@ class PdfViewerWidget(QWidget):
                 annot = annot.next
 
             is_hover_annot = False
+            is_hover_tex_annot = False
             current_annot = None
+
+            # if self.is_focus():
             for annot in annots:
                 if fitz.Point(ex, ey) in annot.rect:
                     # message_to_emacs(annot.info["content"])
                     is_hover_annot = True
                     current_annot = annot
                     opacity = 0.5
-                    if current_annot.type[0] == fitz.PDF_ANNOT_TEXT:
-                        message_to_emacs("[M-d]Delete annot [M-e]Edit popup text annot")
-                    elif current_annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
-                        message_to_emacs("[M-d]Delete annot [M-e]Edit inline text annot")
-                    else:
-                        message_to_emacs("[M-d]Delete annot")
+                    if current_annot.type[0] == fitz.PDF_ANNOT_TEXT or \
+                       current_annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
+                        is_hover_tex_annot = True
                 else:
                     opacity = 1.0
                 if opacity != annot.opacity:
                     annot.setOpacity(opacity)
                     annot.update()
+
+            if print_msg:
+                if not is_hover_annot:
+                    eval_in_emacs("eaf--clear-message", [])
+                elif is_hover_tex_annot:
+                    message_to_emacs("[M-d]Delete annot [M-e]Edit text annot [M-r]Move text annot")
+                else:
+                    message_to_emacs("[M-d]Delete annot")
+
 
             # update only if changed
             if is_hover_annot != self.is_hover_annot:
@@ -1509,24 +1538,29 @@ class PdfViewerWidget(QWidget):
         self.update()
 
     def annot_handler(self, action=None):
-        page, annot = self.hover_annot()
+        page, annot = self.hover_annot(False)
         if annot.parent:
             if action == "delete":
                 page.deleteAnnot(annot)
                 self.save_annot()
-            if action == "edit":
-                self.edited_page_annot = (page, annot)
+            elif action == "edit":
+                self.edited_annot_page = (annot, page)
                 if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
                    annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
                     atomic_edit(self.buffer_id, annot.info["content"].replace("\r", "\n"))
+            elif action == "move":
+                self.moved_annot_page = (annot, page)
+                if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
+                   annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
+                    self.enable_move_text_annot_mode()
 
-    def update_annot_text(self, annot_text):
-        page, annot = self.edited_page_annot
+    def edit_annot_text(self, annot_text):
+        annot, page = self.edited_annot_page
         if annot.parent:
             if annot.type[0] == fitz.PDF_ANNOT_TEXT:
                 annot.setInfo(content=annot_text)
                 message_to_emacs("Updated popup text annot!")
-            if annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
+            elif annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
                 annot.setInfo(content=annot_text)
                 point = annot.rect.top_left
                 fontsize, = get_emacs_vars(["eaf-pdf-inline-text-annot-fontsize"])
@@ -1534,8 +1568,22 @@ class PdfViewerWidget(QWidget):
                 annot.setRect(rect)
                 message_to_emacs("Updated inline text annot!")
             annot.update()
-        self.save_annot()
-        self.edited_page_annot = (None, None)
+            self.save_annot()
+        self.edited_annot_page = (None, None)
+
+    def move_annot_text(self):
+        annot, page = self.moved_annot_page
+        if annot.parent:
+            if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
+               annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
+                (point, page_index) = self.move_text_annot_pos
+                rect = annot.rect
+                new_rect = fitz.Rect(point, point.x + rect.width, point.y + rect.height)
+                annot.setRect(new_rect)
+                annot.update()
+                self.save_annot()
+        self.moved_annot_page = (None, None)
+        self.disable_move_text_annot_mode()
 
     def jump_to_page(self, page_num):
         self.update_vertical_offset(min(max(self.scale * (int(page_num) - 1) * self.page_height, 0), self.max_scroll_offset()))
@@ -1633,7 +1681,7 @@ class PdfViewerWidget(QWidget):
 
         if event.type() == QEvent.MouseMove:
             if self.hasMouseTracking():
-                self.hover_annot()
+                self.hover_annot(True)
             else:
                 self.handle_select_mode()
 
@@ -1651,6 +1699,9 @@ class PdfViewerWidget(QWidget):
             elif self.is_inline_text_annot_mode:
                 if event.button() != Qt.LeftButton:
                     self.disable_inline_text_annot_mode()
+            elif self.is_move_text_annot_mode:
+                if event.button() != Qt.LeftButton:
+                    self.disable_move_text_annot_mode()
             else:
                 if event.button() == Qt.LeftButton:
                     # In order to catch mouse move event when drap mouse.
@@ -1669,6 +1720,10 @@ class PdfViewerWidget(QWidget):
             if not self.inline_text_annot_timer.isActive() and \
                self.is_inline_text_annot_handler_waiting:
                 self.inline_text_annot_timer.start()
+
+            if not self.move_text_annot_timer.isActive() and \
+               self.is_move_text_annot_handler_waiting:
+                self.move_text_annot_timer.start()
 
             if platform.system() == "Darwin":
                 eval_in_emacs('eaf-activate-emacs-window', [])
@@ -1695,7 +1750,6 @@ class PdfViewerWidget(QWidget):
 
     def handle_popup_text_annot_mode(self):
         if self.is_popup_text_annot_mode:
-            # self.disable_popup_text_annot_mode()
             self.is_popup_text_annot_handler_waiting = False
             ex, ey, page_index = self.get_cursor_absolute_position()
             self.popup_text_annot_pos = (fitz.Point(ex, ey), page_index)
@@ -1713,12 +1767,27 @@ class PdfViewerWidget(QWidget):
 
     def handle_inline_text_annot_mode(self):
         if self.is_inline_text_annot_mode:
-            # self.disable_inline_text_annot_mode()
             self.is_inline_text_annot_handler_waiting = False
             ex, ey, page_index = self.get_cursor_absolute_position()
             self.inline_text_annot_pos = (fitz.Point(ex, ey), page_index)
 
             atomic_edit(self.buffer_id, "")
+
+    def enable_move_text_annot_mode(self):
+        self.is_move_text_annot_mode = True
+        self.is_move_text_annot_handler_waiting = True
+        self.move_text_annot_pos = (None, None)
+
+    def disable_move_text_annot_mode(self):
+        self.is_move_text_annot_mode = False
+        self.is_move_text_annot_handler_waiting = False
+
+    def handle_move_text_annot_mode(self):
+        if self.is_move_text_annot_mode:
+            self.is_move_text_annot_handler_waiting = False
+            ex, ey, page_index = self.get_cursor_absolute_position()
+            self.move_text_annot_pos = (fitz.Point(ex, ey), page_index)
+            self.move_annot_text()
 
     def handle_select_mode(self):
         self.is_select_mode = True
