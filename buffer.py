@@ -1779,7 +1779,6 @@ class PdfViewerWidget(QWidget):
         self.move_text_annot_pos = (None, None)
 
     def disable_move_text_annot_mode(self):
-        message_to_emacs("Disable Move Text Annot")
         self.is_move_text_annot_mode = False
         self.is_move_text_annot_handler_waiting = False
 
