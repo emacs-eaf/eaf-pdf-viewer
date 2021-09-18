@@ -178,6 +178,7 @@ Non-nil means don't invert images."
     ("M-t" . "add_annot_popup_text")
     ("M-T" . "add_annot_inline_text")
     ("M-e" . "edit_annot_text")
+    ("M-r" . "move_annot_text")
     ("M-p" . "toggle_presentation_mode")
     ("J" . "select_left_tab")
     ("K" . "select_right_tab")
