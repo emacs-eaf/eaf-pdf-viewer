@@ -798,8 +798,7 @@ class PdfViewerWidget(QWidget):
 
     def is_buffer_focused(self):
         try:
-            path_url = get_emacs_func_result("eaf-get-path-or-url", [])
-            return (self.url == path_url)
+            return get_emacs_func_result("eaf-get-path-or-url", []) == self.url
         except Exception:
             return False
 
