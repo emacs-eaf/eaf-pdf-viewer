@@ -26,7 +26,7 @@ from PyQt5.QtGui import QPainter, QPolygon, QPalette
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
-from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_vars, get_emacs_config_dir
+from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_vars, get_emacs_func_result, get_emacs_config_dir
 import fitz
 import time
 import random
@@ -796,6 +796,12 @@ class PdfViewerWidget(QWidget):
         if self.synctex_page_num != None:
             self.jump_to_page(self.synctex_page_num)
 
+    def is_buffer_focused(self):
+        try:
+            return get_emacs_func_result("eaf-get-path-or-url", []) == self.url
+        except Exception:
+            return False
+
     @interactive
     def toggle_presentation_mode(self):
         '''
@@ -1488,7 +1494,6 @@ class PdfViewerWidget(QWidget):
             is_hover_tex_annot = False
             current_annot = None
 
-            # if self.is_focus():
             for annot in annots:
                 if fitz.Point(ex, ey) in annot.rect:
                     # message_to_emacs(annot.info["content"])
@@ -1506,7 +1511,7 @@ class PdfViewerWidget(QWidget):
 
             # update and print message only if changed
             if is_hover_annot != self.is_hover_annot:
-                if print_msg:
+                if print_msg and self.is_buffer_focused():
                     if not is_hover_annot:
                         eval_in_emacs("eaf--clear-message", [])
                     elif is_hover_tex_annot:
