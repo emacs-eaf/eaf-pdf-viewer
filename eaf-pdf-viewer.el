@@ -133,6 +133,16 @@ Non-nil means don't invert images."
   :type 'string
   :group 'eaf-pdf-viewer)
 
+(defcustom eaf-pdf-text-highlight-annot-color "#ffd815"
+  "The color used by pdf text highlighting annot."
+  :type 'string
+  :group 'eaf-pdf-viewer)
+
+(defcustom eaf-pdf-text-underline-annot-color "#11e32a"
+  "The color used by pdf text highlighting annot."
+  :type 'string
+  :group 'eaf-pdf-viewer)
+
 (defcustom eaf-pdf-viewer-keybinding
   '(("j" . "scroll_up")
     ("<down>" . "scroll_up")

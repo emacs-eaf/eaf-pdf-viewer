@@ -797,6 +797,7 @@ class PdfViewerWidget(QWidget):
             self.jump_to_page(self.synctex_page_num)
 
     def is_buffer_focused(self):
+        # This check is slow, use only necessary
         try:
             return get_emacs_func_result("eaf-get-path-or-url", []) == self.url
         except Exception:
@@ -1342,10 +1343,18 @@ class PdfViewerWidget(QWidget):
 
             if annot_type == "highlight":
                 new_annot = page.addHighlightAnnot(quad_list)
+                color, = get_emacs_vars(["eaf-pdf-text-highlight-annot-color"])
+                qcolor = QColor(color)
+                new_annot.setColors(stroke=qcolor.getRgbF()[0:3])
+                new_annot.update()
             elif annot_type == "strikeout":
                 new_annot = page.addStrikeoutAnnot(quad_list)
             elif annot_type == "underline":
                 new_annot = page.addUnderlineAnnot(quad_list)
+                color, = get_emacs_vars(["eaf-pdf-text-underline-annot-color"])
+                qcolor = QColor(color)
+                new_annot.setColors(stroke=qcolor.getRgbF()[0:3])
+                new_annot.update()
             elif annot_type == "squiggly":
                 new_annot = page.addSquigglyAnnot(quad_list)
             elif annot_type == "text":
