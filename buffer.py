@@ -1361,6 +1361,8 @@ class PdfViewerWidget(QWidget):
                 point = quad_list[-1].lr # lower right point
                 new_annot = page.addTextAnnot(point, text, icon="Note")
 
+            username, = get_emacs_vars(["user-full-name"])
+            new_annot.setInfo(title=username)
             new_annot.parent = page
         self.document.saveIncr()
         self.select_area_annot_quad_cache_dict.clear()
@@ -1372,6 +1374,8 @@ class PdfViewerWidget(QWidget):
 
         page = self.document[page_index]
         new_annot = page.addTextAnnot(point, text, icon="Note")
+        username, = get_emacs_vars(["user-full-name"])
+        new_annot.setInfo(title=username)
         new_annot.parent = page
 
         self.save_annot()
@@ -1401,6 +1405,8 @@ class PdfViewerWidget(QWidget):
                                           fontsize=fontsize, fontname="Arial",
                                           text_color=[color_r, color_g, color_b],
                                           align = 0)
+        username, = get_emacs_vars(["user-full-name"])
+        new_annot.setInfo(title=username)
         new_annot.parent = page
 
         self.save_annot()
