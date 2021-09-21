@@ -139,7 +139,7 @@ Non-nil means don't invert images."
   :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-text-underline-annot-color "#11e32a"
-  "The color used by pdf text highlighting annot."
+  "The color used by pdf text underlining annot."
   :type 'string
   :group 'eaf-pdf-viewer)
 
