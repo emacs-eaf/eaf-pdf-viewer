@@ -202,8 +202,6 @@ class AppBuffer(Buffer):
             eval_in_emacs('kill-new', [content])
             message_to_emacs(content)
             self.buffer_widget.cleanup_select()
-        else:
-            message_to_emacs("Cannot copy, you should double click your mouse and hover through the text on the PDF. Don't click and drag!")
 
     def get_select(self):
         if self.buffer_widget.is_select_mode:
@@ -977,10 +975,10 @@ class PdfViewerWidget(QWidget):
                           QPoint(x+35, y+5),
                           QPoint(x+26, y+15), QPoint(x+26, y+10), QPoint(x, y+10),
                           QPoint(x, y)])
-        fillColor = QColor(236, 96, 31, 255)
-        borderColor = QColor(255, 91, 15, 255)
-        painter.setBrush(fillColor)
-        painter.setPen(borderColor)
+        fill_color = QColor(236, 96, 31, 255)
+        border_color = QColor(255, 91, 15, 255)
+        painter.setBrush(fill_color)
+        painter.setPen(border_color)
         painter.drawPolygon(arrow)
         QtCore.QTimer().singleShot(5000, self.clear_synctex_info)
         painter.restore()
@@ -1505,7 +1503,6 @@ class PdfViewerWidget(QWidget):
 
             for annot in annots:
                 if fitz.Point(ex, ey) in annot.rect:
-                    # message_to_emacs(annot.info["content"])
                     is_hover_annot = True
                     current_annot = annot
                     opacity = 0.5
