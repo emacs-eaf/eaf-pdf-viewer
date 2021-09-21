@@ -647,6 +647,7 @@ class PdfViewerWidget(QWidget):
         self.config_dir = get_emacs_config_dir()
         self.background_color = background_color
         self.buffer_id = buffer_id
+        self.user_name, = get_emacs_vars(["user-full-name"])
 
         self.synctex_page_num = synctex_info[0]
         self.synctex_pos_x = synctex_info[1]
@@ -1359,6 +1360,7 @@ class PdfViewerWidget(QWidget):
                 point = quad_list[-1].lr # lower right point
                 new_annot = page.addTextAnnot(point, text, icon="Note")
 
+            new_annot.setInfo(title=self.user_name)
             new_annot.parent = page
         self.document.saveIncr()
         self.select_area_annot_quad_cache_dict.clear()
@@ -1370,6 +1372,7 @@ class PdfViewerWidget(QWidget):
 
         page = self.document[page_index]
         new_annot = page.addTextAnnot(point, text, icon="Note")
+        new_annot.setInfo(title=self.user_name)
         new_annot.parent = page
 
         self.save_annot()
@@ -1399,6 +1402,7 @@ class PdfViewerWidget(QWidget):
                                           fontsize=fontsize, fontname="Arial",
                                           text_color=[color_r, color_g, color_b],
                                           align = 0)
+        new_annot.setInfo(title=self.user_name)
         new_annot.parent = page
 
         self.save_annot()
