@@ -797,7 +797,7 @@ class PdfViewerWidget(QWidget):
             self.jump_to_page(self.synctex_page_num)
 
     def is_buffer_focused(self):
-        # This check is slow, use only necessary
+        # This check is slow, use only when necessary
         try:
             return get_emacs_func_result("eaf-get-path-or-url", []) == self.url
         except Exception:
