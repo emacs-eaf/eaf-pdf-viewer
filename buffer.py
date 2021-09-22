@@ -26,7 +26,7 @@ from PyQt5.QtGui import QPainter, QPolygon, QPalette
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
-from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_vars, get_emacs_func_result, get_emacs_config_dir
+from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_var, get_emacs_vars, get_emacs_func_result, get_emacs_config_dir
 import fitz
 import time
 import random
@@ -372,7 +372,11 @@ class PdfDocument(fitz.Document):
 
     def reload_document(self, url):
         self._page_cache_dict = {}
-        self.document = fitz.open(url)
+        try:
+            self.document = fitz.open(url)
+        except Exception:
+            message_to_emacs("Failed to reload PDF file!")
+
 
     def cache_page(self, index, page):
         self._page_cache_dict[index] = page
@@ -647,7 +651,7 @@ class PdfViewerWidget(QWidget):
         self.config_dir = get_emacs_config_dir()
         self.background_color = background_color
         self.buffer_id = buffer_id
-        self.user_name, = get_emacs_vars(["user-full-name"])
+        self.user_name = get_emacs_var("user-full-name")
 
         self.synctex_page_num = synctex_info[0]
         self.synctex_pos_x = synctex_info[1]
@@ -670,7 +674,12 @@ class PdfViewerWidget(QWidget):
          ])
 
         # Load document first.
-        self.document = PdfDocument(fitz.open(url))
+        try:
+            self.document = PdfDocument(fitz.open(url))
+        except Exception:
+            message_to_emacs("Failed to load PDF file!")
+            return
+
         self.document.watch_file(url, lambda: (self.page_cache_pixmap_dict.clear(), self.update()))
 
         # Get document's page information.
@@ -1092,12 +1101,15 @@ class PdfViewerWidget(QWidget):
 
     @interactive
     def reload_document(self):
-        self.document = PdfDocument(fitz.open(self.url))
-        # recompute width, height, total number since the file might be modified
-        self.page_width = self.document.get_page_width()
-        self.page_height = self.document.get_page_height()
-        self.page_total_number = self.document.pageCount
-        message_to_emacs("Reloaded document!")
+        try:
+            self.document = PdfDocument(fitz.open(self.url))
+            # recompute width, height, total number since the file might be modified
+            self.page_width = self.document.get_page_width()
+            self.page_height = self.document.get_page_height()
+            self.page_total_number = self.document.pageCount
+            message_to_emacs("Reloaded PDF file!")
+        except Exception:
+            message_to_emacs("Failed to reload PDF file!")
 
     @interactive
     def toggle_read_mode(self):
