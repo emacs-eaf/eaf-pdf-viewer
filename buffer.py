@@ -1518,7 +1518,7 @@ class PdfViewerWidget(QWidget):
             current_annot = None
 
             for annot in annots:
-                if fitz.Point(ex, ey) in annot.rect:
+                if annot.info["title"] and fitz.Point(ex, ey) in annot.rect:
                     is_hover_annot = True
                     current_annot = annot
                     opacity = 0.5
