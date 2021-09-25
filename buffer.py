@@ -661,12 +661,19 @@ class PdfViewerWidget(QWidget):
         self.setMouseTracking(True)
 
         (self.marker_letters,
-         self.pdf_dark_mode, self.pdf_default_zoom, self.pdf_dark_exclude_image, self.pdf_scroll_ratio,
-         self.theme_foreground_color, self.theme_background_color, self.theme_mode) = get_emacs_vars([
+         self.pdf_dark_mode,
+         self.pdf_dark_exclude_image,
+         self.pdf_default_zoom,
+         self.pdf_zoom_step,
+         self.pdf_scroll_ratio,
+         self.theme_foreground_color,
+         self.theme_background_color,
+         self.theme_mode) = get_emacs_vars([
              "eaf-marker-letters",
              "eaf-pdf-dark-mode",
-             "eaf-pdf-default-zoom",
              "eaf-pdf-dark-exclude-image",
+             "eaf-pdf-default-zoom",
+             "eaf-pdf-zoom-step",
              "eaf-pdf-scroll-ratio",
              "eaf-emacs-theme-foreground-color",
              "eaf-emacs-theme-background-color",
@@ -1160,13 +1167,13 @@ class PdfViewerWidget(QWidget):
     @interactive
     def zoom_in(self):
         self.read_mode = "fit_to_customize"
-        self.scale_to(min(10, self.scale + 0.2))
+        self.scale_to(min(10, self.scale + self.pdf_zoom_step))
         self.update()
 
     @interactive
     def zoom_out(self):
         self.read_mode = "fit_to_customize"
-        self.scale_to(max(1, self.scale - 0.2))
+        self.scale_to(max(1, self.scale - self.pdf_zoom_step))
         self.update()
 
     @interactive

@@ -105,6 +105,11 @@ Possible values are
   :type 'float
   :group 'eaf-pdf-viewer)
 
+(defcustom eaf-pdf-zoom-step 0.2
+  "The ratio step of the current page size to perform zoom in, zoom out."
+  :type 'float
+  :group 'eaf-pdf-viewer)
+
 (defcustom eaf-pdf-scroll-ratio 0.05
   "The ratio of the page in each step when scrolling."
   :type 'float
