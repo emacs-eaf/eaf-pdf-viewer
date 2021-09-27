@@ -550,7 +550,7 @@ class PdfPage(fitz.Page):
         if invert:
             pixmap.invertIRect(pixmap.irect)
 
-        if invert_image and invert:
+        if not invert_image and invert:
             pixmap = self.with_invert_exclude_image(scale, pixmap)
 
         img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format_RGBA8888)
@@ -708,9 +708,9 @@ class PdfViewerWidget(QWidget):
         self.horizontal_offset = 0
 
         # Inverted mode.
-        self.inverted_mode = True
-        if self.theme_mode != "dark" and self.theme_mode != "force":
-            self.inverted_mode = False
+        self.inverted_mode = False
+        if self.pdf_dark_mode == "follow" or self.pdf_dark_mode == "force":
+            self.inverted_mode = True
 
         # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
         self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.isPDF
@@ -920,7 +920,7 @@ class PdfViewerWidget(QWidget):
 
         # Draw background.
         # change color of background if inverted mode is enable
-        if self.pdf_dark_mode == "follow":
+        if self.pdf_dark_mode == "follow" or self.pdf_dark_mode == "force":
             color = QColor(self.theme_background_color)
             painter.setBrush(color)
             painter.setPen(color)
