@@ -153,6 +153,9 @@ class AppBuffer(Buffer):
     def jump_to_page(self):
         self.send_input_message("Jump to Page: ", "jump_page")
 
+    def jump_to_page_with_num(self, num):
+        self.buffer_widget.jump_to_page(int(num))
+
     def jump_to_page_synctex(self, synctex_info):
         synctex_info = synctex_info.split(":")
 
