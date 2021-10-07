@@ -1163,6 +1163,10 @@ class PdfViewerWidget(QWidget):
         self.update_horizontal_offset(min(self.horizontal_offset + self.scroll_step_horizontal, (self.page_width * self.scale - self.rect().width()) / 2))
 
     @interactive
+    def scroll_center_horizontal(self):
+        self.update_horizontal_offset(0)
+
+    @interactive
     def scroll_up_page(self):
         # Adjust scroll step to make users continue reading fluently.
         self.update_vertical_offset(min(self.scroll_offset + self.rect().height() - self.scroll_step_vertical, self.max_scroll_offset()))
@@ -1190,6 +1194,15 @@ class PdfViewerWidget(QWidget):
     def zoom_out(self):
         self.read_mode = "fit_to_customize"
         self.scale_to(max(1, self.scale - self.pdf_zoom_step))
+        self.update()
+
+    @interactive
+    def zoom_fit_text_width(self):
+        self.read_mode = "fit_to_customize"
+        page_index = self.start_page_index
+        text_width = self.document._document_page_clip.width
+        self.scale_to(self.rect().width() * 0.99 / text_width)
+        self.scroll_center_horizontal()
         self.update()
 
     @interactive
