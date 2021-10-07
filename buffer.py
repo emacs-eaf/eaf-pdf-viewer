@@ -837,8 +837,18 @@ class PdfViewerWidget(QWidget):
             message_to_emacs("Continuous Mode.")
 
     @property
-    def scroll_step(self):
-        return self.rect().height() if self.presentation_mode else self.rect().size().height() * self.scroll_ratio
+    def scroll_step_vertical(self):
+        if self.presentation_mode:
+            return self.rect().height()
+        else:
+            return self.rect().size().height() * self.scroll_ratio
+
+    @property
+    def scroll_step_horizontal(self):
+        if self.presentation_mode:
+            return self.rect().width()
+        else:
+            return self.rect().size().width() * self.scroll_ratio
 
     @interactive
     def save_current_pos(self):
@@ -1065,9 +1075,12 @@ class PdfViewerWidget(QWidget):
                 else:
                     # fixed pixel scrolling
                     numSteps = numSteps / 120
-                self.update_vertical_offset(max(min(self.scroll_offset - numSteps * self.scroll_step, self.max_scroll_offset()), 0))
+                new_pos = self.scroll_offset - numSteps * self.scroll_step_vertical
+                max_pos = self.max_scroll_offset()
+                self.update_vertical_offset(max(min(new_pos, max_pos), 0))
+
             if event.angleDelta().x():
-                new_pos = (self.horizontal_offset + event.angleDelta().x() / 120 * self.scroll_step)
+                new_pos = (self.horizontal_offset + event.angleDelta().x() / 120 * self.scroll_step_horizontal)
                 max_pos = (self.page_width * self.scale - self.rect().width())
                 self.update_horizontal_offset(max(min(new_pos , max_pos), -max_pos))
 
@@ -1135,29 +1148,29 @@ class PdfViewerWidget(QWidget):
 
     @interactive
     def scroll_up(self):
-        self.update_vertical_offset(min(self.scroll_offset + self.scroll_step, self.max_scroll_offset()))
+        self.update_vertical_offset(min(self.scroll_offset + self.scroll_step_vertical, self.max_scroll_offset()))
 
     @interactive
     def scroll_down(self):
-        self.update_vertical_offset(max(self.scroll_offset - self.scroll_step, 0))
+        self.update_vertical_offset(max(self.scroll_offset - self.scroll_step_vertical, 0))
 
     @interactive
     def scroll_right(self):
-        self.update_horizontal_offset(max(self.horizontal_offset - self.scroll_step, (self.rect().width() - self.page_width * self.scale) / 2))
+        self.update_horizontal_offset(max(self.horizontal_offset - self.scroll_step_horizontal, (self.rect().width() - self.page_width * self.scale) / 2))
 
     @interactive
     def scroll_left(self):
-        self.update_horizontal_offset(min(self.horizontal_offset + self.scroll_step, (self.page_width * self.scale - self.rect().width()) / 2))
+        self.update_horizontal_offset(min(self.horizontal_offset + self.scroll_step_horizontal, (self.page_width * self.scale - self.rect().width()) / 2))
 
     @interactive
     def scroll_up_page(self):
         # Adjust scroll step to make users continue reading fluently.
-        self.update_vertical_offset(min(self.scroll_offset + self.rect().height() - self.scroll_step, self.max_scroll_offset()))
+        self.update_vertical_offset(min(self.scroll_offset + self.rect().height() - self.scroll_step_vertical, self.max_scroll_offset()))
 
     @interactive
     def scroll_down_page(self):
         # Adjust scroll step to make users continue reading fluently.
-        self.update_vertical_offset(max(self.scroll_offset - self.rect().height() + self.scroll_step, 0))
+        self.update_vertical_offset(max(self.scroll_offset - self.rect().height() + self.scroll_step_vertical, 0))
 
     @interactive
     def scroll_to_begin(self):
