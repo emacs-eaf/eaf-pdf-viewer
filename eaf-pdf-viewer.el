@@ -431,12 +431,15 @@ The key is the page_index."
 (defun eaf--pdf-viewer-bookmark-restore (bookmark)
   (eaf-open (cdr (assq 'filename bookmark))))
 
-(defun eaf--pdf-update-position (page-index page-total-number)
+(defun eaf--pdf-update-position (buffer-id page-index page-total-number)
   "Format mode line position indicator to show the current page and the total pages."
-  (setq-local mode-line-position
-              `(" P" ,page-index
-                "/" ,page-total-number))
-  (force-mode-line-update))
+  (let ((buffer (eaf-get-buffer buffer-id)))
+    (when buffer
+      (with-current-buffer buffer
+        (setq-local mode-line-position
+                    `(" P" ,page-index
+                      "/" ,page-total-number))
+        (force-mode-line-update)))))
 
 (defun eaf-open-pdf-from-history ()
   "A wrapper around `eaf-open' that provides pdf history candidates.

@@ -1022,8 +1022,10 @@ class PdfViewerWidget(QWidget):
         # Show in mode-line-position
         current_page = math.floor((self.start_page_index +
                                    self.last_page_index + 1) / 2)
-        eval_in_emacs("eaf--pdf-update-position",
-                      [current_page, self.page_total_number])
+
+        eval_in_emacs("eaf--pdf-update-position", [self.buffer_id,
+                                                   current_page,
+                                                   self.page_total_number])
 
         # Draw progress on page.
         show_progress_on_page, = get_emacs_vars(["eaf-pdf-show-progress-on-page"])
@@ -1666,7 +1668,9 @@ class PdfViewerWidget(QWidget):
             self.update()
 
             current_page = math.floor((self.start_page_index + self.last_page_index + 1) / 2)
-            eval_in_emacs("eaf--pdf-update-position", [current_page, self.page_total_number])
+            eval_in_emacs("eaf--pdf-update-position", [self.buffer_id,
+                                                       current_page,
+                                                       self.page_total_number])
 
     def update_horizontal_offset(self, new_offset):
         eval_in_emacs("eaf--clear-message", [])
