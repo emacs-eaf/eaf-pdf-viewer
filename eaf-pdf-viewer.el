@@ -436,10 +436,15 @@ The key is the page_index."
   (let ((buffer (eaf-get-buffer buffer-id)))
     (when buffer
       (with-current-buffer buffer
-        (setq-local mode-line-position
-                    `(" P" ,page-index
-                      "/" ,page-total-number))
-        (force-mode-line-update)))))
+        (let ((need-update
+               (condition-case ex
+                   (or (not (equal (cadr mode-line-position) page-index))
+                       (not (equal (cadddr mode-line-position) page-total-number)))
+                 ('error t))))
+          (when need-update
+            (setq-local mode-line-position `(" P" ,page-index
+                                             "/" ,page-total-number))
+            (force-mode-line-update)))))))
 
 (defun eaf-open-pdf-from-history ()
   "A wrapper around `eaf-open' that provides pdf history candidates.
