@@ -184,6 +184,8 @@ Non-nil means don't invert images."
     ("M-w" . "copy_select")
     ("C-s" . "search_text_forward")
     ("C-r" . "search_text_backward")
+    ("C-/" . "undo_annot_action")
+    ("C-?" . "redo_annot_action")
     ("x" . "close_buffer")
     ("r" . "reload_document")
     ("C-<right>" . "rotate_clockwise")
