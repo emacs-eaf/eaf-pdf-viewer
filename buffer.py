@@ -26,7 +26,7 @@ from PyQt5.QtGui import QPainter, QPolygon, QPalette
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
-from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_var, get_emacs_vars, get_emacs_func_result, get_emacs_config_dir
+from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_var, get_emacs_vars, get_emacs_func_result, get_emacs_config_dir, get_emacs_theme_mode, get_emacs_theme_foreground, get_emacs_theme_background
 import fitz
 import time
 import random
@@ -725,10 +725,7 @@ class PdfViewerWidget(QWidget):
          self.text_highlight_annot_color,
          self.text_underline_annot_color,
          self.inline_text_annot_color,
-         self.inline_text_annot_fontsize,
-         self.theme_foreground_color,
-         self.theme_background_color,
-         self.theme_mode) = get_emacs_vars([
+         self.inline_text_annot_fontsize) = get_emacs_vars([
              "eaf-marker-letters",
              "eaf-pdf-dark-mode",
              "eaf-pdf-dark-exclude-image",
@@ -738,10 +735,11 @@ class PdfViewerWidget(QWidget):
              "eaf-pdf-text-highlight-annot-color",
              "eaf-pdf-text-underline-annot-color",
              "eaf-pdf-inline-text-annot-color",
-             "eaf-pdf-inline-text-annot-fontsize",
-             "eaf-emacs-theme-foreground-color",
-             "eaf-emacs-theme-background-color",
-             "eaf-emacs-theme-mode"])
+             "eaf-pdf-inline-text-annot-fontsize"])
+
+        self.theme_mode = get_emacs_theme_mode()
+        self.theme_foreground_color = get_emacs_theme_foreground()
+        self.theme_background_color = get_emacs_theme_background()
 
         # Load document first.
         try:
