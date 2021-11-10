@@ -36,6 +36,7 @@ import hashlib
 import json
 import platform
 import threading
+from collections import defaultdict
 
 class AppBuffer(Buffer):
     def __init__(self, buffer_id, url, arguments):
@@ -440,18 +441,17 @@ class PdfDocument(fitz.Document):
         '''
         Refresh content with PDF file changed.
         '''
-        self.watch_file_path = path
         self.watch_callback = callback
         self.file_changed_wacher = QFileSystemWatcher()
-        if self.file_changed_wacher.addPath(path):
-            self.file_changed_wacher.fileChanged.connect(self.handle_file_changed)
+        self.file_changed_wacher.addPath(path)
+        self.file_changed_wacher.fileChanged.connect(self.handle_file_changed)
 
     def handle_file_changed(self, path):
         '''
         Use the QFileSystemWatcher watch file changed. If the watch file have been remove or rename,
         this watch will auto remove.
         '''
-        if path == self.watch_file_path:
+        if path in self.file_changed_wacher.files():
             try:
                 # Some program will generate `middle` file, but file already changed, fitz try to
                 # open the `middle` file caused error.
@@ -465,13 +465,10 @@ class PdfDocument(fitz.Document):
                 message_to_emacs("Detected that %s has been changed. Refreshing buffer..." %path)
 
             try:
-                self.watch_callback()
+                self.watch_callback(path)
             except Exception:
                 print("Failed to watch callback")
 
-            # if the file have been renew save, file_changed_watcher will remove the path form monitor list.
-            if len(self.file_changed_wacher.files()) == 0 :
-                self.file_changed_wacher.addPath(path)
 
     def toggle_trim_margin(self):
         self._is_trim_margin = not self._is_trim_margin
@@ -741,21 +738,6 @@ class PdfViewerWidget(QWidget):
         self.theme_foreground_color = get_emacs_theme_foreground()
         self.theme_background_color = get_emacs_theme_background()
 
-        # Load document first.
-        try:
-            self.document = PdfDocument(fitz.open(url))
-        except Exception:
-            message_to_emacs("Failed to load PDF file!")
-            return
-
-        self.document.watch_file(url, lambda: (self.page_cache_pixmap_dict.clear(), self.update()))
-
-        # Get document's page information.
-        self.document.watch_page_size_change(self.update_page_size)
-        self.page_width = self.document.get_page_width()
-        self.page_height = self.document.get_page_height()
-        self.page_total_number = self.document.pageCount
-
         # Init scale and scale mode.
         self.scale = 1.0
         self.read_mode = "fit_to_width"
@@ -771,14 +753,6 @@ class PdfViewerWidget(QWidget):
         # Undo/redo annot actions
         self.annot_action_sequence = []
         self.annot_action_index = -1
-
-        # Inverted mode.
-        self.inverted_mode = False
-        if self.pdf_dark_mode == "follow" or self.pdf_dark_mode == "force":
-            self.inverted_mode = True
-
-        # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
-        self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.isPDF
 
         # mark link
         self.is_mark_link = False
@@ -797,7 +771,7 @@ class PdfViewerWidget(QWidget):
         self.start_char_page_index = None
         self.last_char_rect_index = None
         self.last_char_page_index = None
-        self.select_area_annot_cache_dict = {k:None for k in range(self.page_total_number)}
+        self.select_area_annot_cache_dict = defaultdict(lambda: None)
         self.select_area_annot_quad_cache_dict = {}
 
         # text annot
@@ -872,9 +846,41 @@ class PdfViewerWidget(QWidget):
         self.start_page_index = 0
         self.last_page_index = 0
 
+        self.load_document(url)
+
+        # Inverted mode.
+        self.inverted_mode = False
+        if self.pdf_dark_mode == "follow" or self.pdf_dark_mode == "force":
+            self.inverted_mode = True
+
+        # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
+        self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.isPDF
+
         # synctex init page
         if self.synctex_page_num != None:
             self.jump_to_page(self.synctex_page_num)
+
+    def load_document(self, url):
+        if self.page_cache_pixmap_dict:
+            self.page_cache_pixmap_dict.clear()
+
+        # Load document first.
+        try:
+            self.document = PdfDocument(fitz.open(url))
+        except Exception:
+            message_to_emacs("Failed to load PDF file!")
+            return
+
+        # Get document's page information.
+        self.document.watch_page_size_change(self.update_page_size)
+        self.page_width = self.document.get_page_width()
+        self.page_height = self.document.get_page_height()
+        self.page_total_number = self.document.pageCount
+
+        # Register file watcher, when document is change, re-calling this function.
+        self.document.watch_file(url, self.load_document)
+
+        self.update()
 
     def is_buffer_focused(self):
         # This check is slow, use only when necessary
