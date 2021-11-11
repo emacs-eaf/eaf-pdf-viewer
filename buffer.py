@@ -871,7 +871,7 @@ class PdfViewerWidget(QWidget):
             message_to_emacs("Failed to load PDF file!")
             return
 
-        # Get document's page information.
+        # recompute width, height, total number since the file might be modified
         self.document.watch_page_size_change(self.update_page_size)
         self.page_width = self.document.get_page_width()
         self.page_height = self.document.get_page_height()
@@ -1195,15 +1195,8 @@ class PdfViewerWidget(QWidget):
 
     @interactive
     def reload_document(self):
-        try:
-            self.document = PdfDocument(fitz.open(self.url))
-            # recompute width, height, total number since the file might be modified
-            self.page_width = self.document.get_page_width()
-            self.page_height = self.document.get_page_height()
-            self.page_total_number = self.document.pageCount
-            message_to_emacs("Reloaded PDF file!")
-        except Exception:
-            message_to_emacs("Failed to reload PDF file!")
+        message_to_emacs("Reloaded PDF file!")
+        self.load_document(self.url)
 
     @interactive
     def toggle_read_mode(self):
