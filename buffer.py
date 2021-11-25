@@ -643,15 +643,15 @@ class PdfPage(fitz.Page):
 
     def add_mark_link(self):
         if self.page.firstLink:
-            for link in self.page.getLinks():
+            for link in self.page.get_links():
                 annot = self.page.addUnderlineAnnot(link["from"])
-                annot.parent = self.page # Must assign annot parent, else deleteAnnot cause parent is None problem.
+                annot.parent = self.page # Must assign annot parent, else delete_annot cause parent is None problem.
                 self._mark_link_annot_list.append(annot)
 
     def cleanup_mark_link(self):
         if self._mark_link_annot_list:
             for annot in self._mark_link_annot_list:
-                self.page.deleteAnnot(annot)
+                self.page.delete_annot(annot)
             self._mark_link_annot_list = []
 
     def mark_search_text(self, keyword):
@@ -666,22 +666,22 @@ class PdfPage(fitz.Page):
         if self._mark_search_annot_list:
             message_to_emacs("Unmarked all matched results.")
             for annot in self._mark_search_annot_list:
-                self.page.deleteAnnot(annot)
+                self.page.delete_annot(annot)
             self._mark_search_annot_list = []
 
     def mark_jump_link_tips(self, letters):
         fontsize, = get_emacs_vars(["eaf-pdf-marker-fontsize"])
         cache_dict = {}
         if self.page.firstLink:
-            links = self.page.getLinks()
+            links = self.page.get_links()
             key_list = generate_random_key(len(links), letters)
             for index, link in enumerate(links):
                 key = key_list[index]
                 link_rect = link["from"]
                 annot_rect = fitz.Rect(link_rect.top_left, link_rect.x0 + fontsize/1.2 * len(key), link_rect.y0 + fontsize)
-                annot = self.page.addFreetextAnnot(annot_rect, str(key), fontsize=fontsize, fontname="Helv", \
-                                                   text_color=[0.0, 0.0, 0.0], fill_color=[255/255.0, 197/255.0, 36/255.0], \
-                                                   align = 1)
+                annot = self.page.add_freetext_annot(annot_rect, str(key), fontsize=fontsize, fontname="Helv", \
+                                                     text_color=[0.0, 0.0, 0.0], fill_color=[255/255.0, 197/255.0, 36/255.0], \
+                                                     align = 1)
                 annot.parent = self.page
                 self._mark_jump_annot_list.append(annot)
                 cache_dict[key] = link
@@ -689,7 +689,7 @@ class PdfPage(fitz.Page):
 
     def cleanup_jump_link_tips(self):
         for annot in self._mark_jump_annot_list:
-            self.page.deleteAnnot(annot)
+            self.page.delete_annot(annot)
         self._mark_jump_annot_list = []
 
 
@@ -1354,7 +1354,7 @@ class PdfViewerWidget(QWidget):
             color = QColor(self.inline_text_annot_color)
             color_r, color_g, color_b = color.redF(), color.greenF(), color.blueF()
             text_color = [color_r, color_g, color_b]
-            new_annot = page.addFreetextAnnot(annot_action.annot_rect,
+            new_annot = page.add_Freetext_Annot(annot_action.annot_rect,
                                               annot_action.annot_content,
                                               fontsize=self.inline_text_annot_fontsize,
                                               fontname="Arial",
@@ -1369,7 +1369,7 @@ class PdfViewerWidget(QWidget):
         page = self.document[annot_action.page_index]
         annot = AnnotAction.find_annot_of_annot_action(page, annot_action)
         if annot:
-            page.deleteAnnot(annot)
+            page.delete_annot(annot)
             self.save_annot()
 
     @interactive
@@ -1598,7 +1598,7 @@ class PdfViewerWidget(QWidget):
         color = QColor(self.inline_text_annot_color)
         color_r, color_g, color_b = color.redF(), color.greenF(), color.blueF()
         text_color = [color_r, color_g, color_b]
-        new_annot = page.addFreetextAnnot(annot_rect, text,
+        new_annot = page.add_Freetext_Annot(annot_rect, text,
                                           fontsize=fontsize, fontname=fontname,
                                           text_color=text_color, align = 0)
         new_annot.setInfo(title=self.user_name)
@@ -1655,7 +1655,7 @@ class PdfViewerWidget(QWidget):
             page = self.document[page_index]
             old_annot = self.select_area_annot_cache_dict[page_index]
             if old_annot:
-                page.deleteAnnot(old_annot)
+                page.delete_annot(old_annot)
 
             quad_list = list(map(lambda x: x.quad, line_rect_list))
             annot = page.addHighlightAnnot(quad_list)
@@ -1672,7 +1672,7 @@ class PdfViewerWidget(QWidget):
         if self.select_area_annot_cache_dict:
             for page_index, annot in self.select_area_annot_cache_dict.items():
                 if annot and annot.parent:
-                        annot.parent.deleteAnnot(annot)
+                        annot.parent.delete_annot(annot)
                 self.select_area_annot_cache_dict[page_index] = None # restore cache
         self.last_char_page_index = None
         self.last_char_rect_index = None
@@ -1730,7 +1730,7 @@ class PdfViewerWidget(QWidget):
                 else:
                     opacity = 1.0
                 if opacity != annot.opacity:
-                    annot.setOpacity(opacity)
+                    annot.set_opacity(opacity)
                     annot.update()
 
             # update and print message only if changed
@@ -1770,7 +1770,7 @@ class PdfViewerWidget(QWidget):
             if action == "delete":
                 annot_action = AnnotAction.create_annot_action("Delete", page.page_index, annot)
                 self.record_new_annot_action(annot_action)
-                page.deleteAnnot(annot)
+                page.delete_annot(annot)
                 self.save_annot()
             elif action == "edit":
                 self.edited_annot_page = (annot, page)
@@ -1884,7 +1884,7 @@ class PdfViewerWidget(QWidget):
             return None
 
         page = self.document[page_index]
-        for link in page.getLinks():
+        for link in page.get_links():
             rect = link["from"]
             if ex >= rect.x0 and ex <= rect.x1 and ey >= rect.y0 and ey <= rect.y1:
                 return link
