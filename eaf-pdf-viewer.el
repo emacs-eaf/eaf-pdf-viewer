@@ -575,8 +575,7 @@ This function works best if paired with a fuzzy search package."
          (opened-buffer (eaf-pdf--find-buffer pdf-url))
          (synctex-info (eaf-pdf--get-synctex-info tex-file line-num pdf-url)))
     (if (not opened-buffer)
-        (eaf-open (prin1-to-string pdf-url)
-                  "pdf-viewer" (format "synctex_info=%s" synctex-info))
+        (eaf-open pdf-url "pdf-viewer" (format "synctex_info=%s" synctex-info))
       (pop-to-buffer opened-buffer)
       (eaf-call-sync "call_function_with_args" eaf--buffer-id
                      "jump_to_page_synctex" (format "%s" synctex-info)))))
