@@ -1086,7 +1086,7 @@ class PdfViewerWidget(QWidget):
                 # limit the visiable area size
                 render_x = max(min(render_x + self.horizontal_offset, 0), self.rect().width() - render_width)
 
-            rect = QRect(render_x, render_y, render_width, render_height)
+            rect = QRect(int(render_x), int(render_y), int(render_width), int(render_height))
 
             # draw rectangle with current pen and brush color
             painter.drawRect(rect)
