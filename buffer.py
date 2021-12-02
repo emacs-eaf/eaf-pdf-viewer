@@ -38,6 +38,54 @@ import platform
 import threading
 from collections import defaultdict
 
+def get_page_crop_box(page):
+    if hasattr(page, "page_crop_box"):
+        return page.page_crop_box
+    else:
+        return page.pageCropBox
+
+def set_page_crop_box(page):
+    if hasattr(page, "set_page_crop_box"):
+        return page.set_page_crop_box
+    else:
+        return page.setCropBox
+
+def get_page_text(page):
+    if hasattr(page, "get_text"):
+        return page.get_text
+    else:
+        return page.getText
+
+def set_page_rotation(page):
+    if hasattr(page, "set_rotation"):
+        return page.set_rotation
+    else:
+        return page.setRotation
+
+def get_page_pixmap(page):
+    if hasattr(page, "get_pixmap"):
+        return page.get_pixmap
+    else:
+        return page.getPixmap
+
+def pixmap_invert_irect(pixmap):
+    if hasattr(pixmap, "invert_irect"):
+        return pixmap.invert_irect
+    else:
+        return pixmap.invertIRect
+
+def get_page_image_list(page):
+    if hasattr(page, "get_image_list"):
+        return page.get_image_list
+    else:
+        return page.getImageList
+
+def get_page_image_bbox(page):
+    if hasattr(page, "get_image_bbox"):
+        return page.get_image_bbox
+    else:
+        return page.getImageBbox
+
 class AppBuffer(Buffer):
     def __init__(self, buffer_id, url, arguments):
         Buffer.__init__(self, buffer_id, url, arguments, False)
@@ -477,7 +525,7 @@ class PdfDocument(fitz.Document):
         if self.isPDF:
             if self._is_trim_margin:
                 return self._document_page_clip.width
-            return self.document.pageCropBox(0).width
+            return get_page_crop_box(self.document)(0).width
         else:
             return self[0].clip.width
 
@@ -485,7 +533,7 @@ class PdfDocument(fitz.Document):
         if self.isPDF:
             if self._is_trim_margin:
                 return self._document_page_clip.height
-            return self.document.pageCropBox(0).height
+            return get_page_crop_box(self.document)(0).height
         else:
             return self[0].clip.height
 
@@ -515,14 +563,14 @@ class PdfPage(fitz.Page):
             # Must set CropBox before get page rawdict , if no,
             # the rawdict bbox coordinate is wrong
             # cause the select text failed
-            self.page.setCropBox(self.clip)
-            d = self.page.getText("rawdict")
+            set_page_crop_box(self.page)(self.clip)
+            d = get_page_text(self.page)("rawdict")
             # cancel the cropbox, if not, will cause the pixmap set cropbox
             # don't begin on top-left(0, 0), page display black margin
-            self.page.setCropBox(self.page.MediaBox)
+            set_page_crop_box(self.page)(self.page.MediaBox)
             return d
         else:
-            return self.page.getText("rawdict")
+            return get_page_text(self.page)("rawdict")
 
     def _init_page_char_rect_list(self):
         '''Collection page char rect list when page init'''
@@ -587,7 +635,7 @@ class PdfPage(fitz.Page):
         return None
 
     def set_rotation(self, rotation):
-        self.page.setRotation(rotation)
+        set_page_rotation(self.page)(rotation)
         if rotation % 180 != 0:
             self.page_width = self.page.CropBox.height
             self.page_height = self.page.CropBox.width
@@ -597,11 +645,11 @@ class PdfPage(fitz.Page):
 
     def get_qpixmap(self, scale, invert, invert_image=False):
         if self.isPDF:
-            self.page.setCropBox(self.clip)
-        pixmap = self.page.getPixmap(matrix=fitz.Matrix(scale, scale), alpha=True)
+            set_page_crop_box(self.page)(self.clip)
+        pixmap = get_page_pixmap(self.page)(matrix=fitz.Matrix(scale, scale), alpha=True)
 
         if invert:
-            pixmap.invertIRect(pixmap.irect)
+            pixmap_invert_irect(pixmap)(pixmap.irect)
 
         if not invert_image and invert:
             pixmap = self.with_invert_exclude_image(scale, pixmap)
@@ -619,15 +667,15 @@ class PdfPage(fitz.Page):
         # exclude image only support PDF document
         imagelist = None
         try:
-            imagelist = self.page.getImageList(full=True)
+            imagelist = get_page_image_list(self.page)(full=True)
         except Exception:
             # PyMupdf 1.14 not include argument 'full'.
-            imagelist = self.page.getImageList()
+            imagelist = get_page_image_list(self.page)
 
         imagebboxlist = []
         for image in imagelist:
             try:
-                imagerect = self.page.getImageBbox(image)
+                imagerect = get_page_image_bbox(self.page)(image)
                 if imagerect.isInfinite or imagerect.isEmpty:
                     continue
                 else:
@@ -636,7 +684,7 @@ class PdfPage(fitz.Page):
                 pass
 
         for bbox in imagebboxlist:
-            pixmap.invertIRect(bbox * self.page.rotationMatrix * scale)
+            pixmap_invert_irect(pixmap)(bbox * self.page.rotationMatrix * scale)
 
         return pixmap
 
@@ -1899,7 +1947,7 @@ class PdfViewerWidget(QWidget):
         word_offset = 10 # 10 pixel is enough for word intersect operation
         draw_rect = fitz.Rect(ex, ey, ex + word_offset, ey + word_offset)
 
-        page.setCropBox(page.rect)
+        set_page_crop_box(page)(page.rect)
         page_words = page.getTextWords()
         rect_words = [w for w in page_words if fitz.Rect(w[:4]).intersect(draw_rect)]
         if rect_words:
