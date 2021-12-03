@@ -39,14 +39,14 @@ import threading
 from collections import defaultdict
 
 def get_page_crop_box(page):
-    if hasattr(page, "page_crop_box"):
-        return page.page_crop_box
+    if hasattr(page, "page_cropbox"):
+        return page.page_cropbox
     else:
         return page.pageCropBox
 
 def set_page_crop_box(page):
-    if hasattr(page, "set_page_crop_box"):
-        return page.set_page_crop_box
+    if hasattr(page, "set_cropbox"):
+        return page.set_cropbox
     else:
         return page.setCropBox
 
@@ -75,8 +75,8 @@ def pixmap_invert_irect(pixmap):
         return pixmap.invertIRect
 
 def get_page_image_list(page):
-    if hasattr(page, "get_image_list"):
-        return page.get_image_list
+    if hasattr(page, "get_images"):
+        return page.get_images
     else:
         return page.getImageList
 
