@@ -630,7 +630,7 @@ class PdfPage(fitz.Page):
         offset = 15
         rect = fitz.Rect(x, y, x + offset, y + offset)
         for char_index, char in enumerate(self._page_char_rect_list):
-            if fitz.Rect(char["bbox"]).intersect(rect):
+            if fitz.Rect(char["bbox"]).intersects(rect):
                 return char_index
         return None
 
@@ -1949,7 +1949,7 @@ class PdfViewerWidget(QWidget):
 
         set_page_crop_box(page)(page.rect)
         page_words = page.getTextWords()
-        rect_words = [w for w in page_words if fitz.Rect(w[:4]).intersect(draw_rect)]
+        rect_words = [w for w in page_words if fitz.Rect(w[:4]).intersects(draw_rect)]
         if rect_words:
             return rect_words[0][4]
 
