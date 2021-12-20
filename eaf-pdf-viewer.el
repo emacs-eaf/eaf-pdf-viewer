@@ -297,8 +297,8 @@ Non-nil means don't invert images."
   "Display an PDF outline of the current buffer."
   (interactive)
   (let ((pdf-buffer (current-buffer))
-        (toc (eaf-call-sync "call_function" eaf--buffer-id "get_toc"))
-        (page-number (string-to-number (eaf-call-sync "call_function" eaf--buffer-id "current_page")))
+        (toc (eaf-call-sync "execute_function" eaf--buffer-id "get_toc"))
+        (page-number (string-to-number (eaf-call-sync "execute_function" eaf--buffer-id "current_page")))
         (outline-buf (get-buffer-create (eaf-pdf-outline-buffer-name))))
     ;; Save window configuration before outline.
     (setq eaf-pdf--outline-window-configuration (current-window-configuration))
@@ -327,7 +327,7 @@ Non-nil means don't invert images."
          (page-num (substring-no-properties (replace-regexp-in-string "\n" "" (car (last (split-string line " ")))))))
     ;; Jump to page.
     (switch-to-buffer-other-window eaf-pdf-outline-pdf-document)
-    (eaf-call-sync "call_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num))
+    (eaf-call-sync "execute_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num))
 
     ;; Restore window configuration before outline operation.
     (when eaf-pdf--outline-window-configuration
@@ -340,7 +340,7 @@ Non-nil means don't invert images."
   (let* ((line (thing-at-point 'line))
          (page-num (substring-no-properties (replace-regexp-in-string "\n" "" (car (last (s-split " " line)))))))
     ;; Jump to page.
-    (eaf-call-async "call_function_with_args"
+    (eaf-call-async "execute_function_with_args"
                    (buffer-local-value 'eaf--buffer-id eaf-pdf-outline-pdf-document)
                    "jump_to_page_with_num" (format "%s" page-num))))
 
@@ -371,7 +371,7 @@ when there is no table of contents for the buffer."
   (interactive)
   (or imenu--index-alist
       (setq imenu--index-alist
-            (let ((toc (eaf-call-sync "call_function" eaf--buffer-id "get_toc")))
+            (let ((toc (eaf-call-sync "execute_function" eaf--buffer-id "get_toc")))
               (cond ((string= toc "")
                      (mapcar #'(lambda (page-num)
                                  (list (concat "Page " (number-to-string page-num)) page-num
@@ -379,7 +379,7 @@ when there is no table of contents for the buffer."
                                        nil))
                              (number-sequence 1
                                               (string-to-number
-                                               (eaf-call-sync "call_function"
+                                               (eaf-call-sync "execute_function"
                                                               eaf--buffer-id
                                                               "page_total_number")))))
                     (t
@@ -409,19 +409,19 @@ Just ignore them and call \"jump_page\" to PAGE-NUM."
   "Return a map of annotations on PAGE.
 
 The key is the annot id on PAGE."
-  (eaf-call-sync "call_function_with_args" eaf--buffer-id "get_page_annots" (format "%s" page)))
+  (eaf-call-sync "execute_function_with_args" eaf--buffer-id "get_page_annots" (format "%s" page)))
 
 (defun eaf-pdf-get-document-annots ()
   "Return a map of page_index of annots.
 
 The key is the page_index."
-  (eaf-call-sync "call_function" eaf--buffer-id "get_document_annots"))
+  (eaf-call-sync "execute_function" eaf--buffer-id "get_document_annots"))
 
 (defun eaf-pdf-jump-to-annot (annot)
   "Jump to specifical pdf annot."
   (let ((rect (gethash "rect" annot))
         (page (gethash "page" annot)))
-    (eaf-call-sync "call_function_with_args" eaf--buffer-id "jump_to_rect" (format "%s" page) rect)))
+    (eaf-call-sync "execute_function_with_args" eaf--buffer-id "jump_to_rect" (format "%s" page) rect)))
 
 (defun eaf--pdf-viewer-bookmark ()
   "Restore EAF buffer according to pdf bookmark from the current file path or web URL."
@@ -577,7 +577,7 @@ This function works best if paired with a fuzzy search package."
     (if (not opened-buffer)
         (eaf-open pdf-url "pdf-viewer" (format "synctex_info=%s" synctex-info))
       (pop-to-buffer opened-buffer)
-      (eaf-call-sync "call_function_with_args" eaf--buffer-id
+      (eaf-call-sync "execute_function_with_args" eaf--buffer-id
                      "jump_to_page_synctex" (format "%s" synctex-info)))))
 
 (defun eaf-pdf-synctex-backward-edit (pdf-file page-num x y)
