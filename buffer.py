@@ -1098,7 +1098,7 @@ class PdfViewerWidget(QWidget):
 
             # Draw an indicator for synctex position
             if self.synctex_page_num == index + 1 and self.synctex_pos_y != None:
-                indicator_pos_y = self.synctex_pos_y * self.scale
+                indicator_pos_y = int(self.synctex_pos_y * self.scale)
                 self.draw_synctex_indicator(painter, 15, indicator_pos_y)
 
             render_y += render_height
