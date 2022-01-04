@@ -38,6 +38,7 @@ import platform
 import base64
 import threading
 from collections import defaultdict
+import re
 
 def get_page_crop_box(page):
     if hasattr(page, "page_cropbox"):
@@ -371,6 +372,23 @@ class AppBuffer(Buffer):
         rect = fitz.Rect(float(arr[0]), float(arr[1]), float(arr[2]), float(arr[3]))
         self.buffer_widget.jump_to_rect(int(page_index), rect)
         return ""
+
+    def delete_pdf_pages(self, pages):
+        page_list = re.split(' +', pages)
+        if len(page_list) > 1:
+            start_page = int(page_list[0]) - 1
+            end_page = int(page_list[1]) - 1
+            if (start_page < 0)  or (start_page > self.buffer_widget.page_total_number):
+                message_to_emacs(" start page err")
+            elif (end_page < 0)  or (end_page > self.buffer_widget.page_total_number):
+                message_to_emacs(" end page err")
+            else:
+                self.buffer_widget.delete_pdf_pages(start_page, end_page)
+        else:
+            page = int(page_list[0]) - 1
+            if (page < 0)  or (page > self.buffer_widget.page_total_number):
+                message_to_emacs("page err")
+            self.buffer_widget.delete_pdf_page(int(page_list[0]-1))
 
     def fetch_marker_callback(self):
         return list(map(lambda x: x.lower(), self.buffer_widget.jump_link_key_cache_dict.keys()))
@@ -1874,6 +1892,14 @@ class PdfViewerWidget(QWidget):
     def jump_to_rect(self, page_index, rect):
         quad = rect.quad
         self.update_vertical_offset((page_index * self.page_height + quad.ul.y) * self.scale)
+
+    def delete_pdf_page (self, page):
+        self.document.delete_page(page)
+        self.save_annot()
+
+    def delete_pdf_pages (self, start_page, end_page):
+        self.document.delete_pages(start_page, end_page)
+        self.save_annot()
 
     def current_percent(self):
         return 100.0 * self.scroll_offset / (self.max_scroll_offset() + self.rect().height())
