@@ -478,6 +478,7 @@ This function works best if paired with a fuzzy search package."
 1 3 => delete page 1 2 3
 "
   (interactive "s delete pages : ")
+  (run-at-time 1 nil #'eaf-keyboard-quit)    ;; only press C-g can make QMessageBox work, after QMessageBox is called 
   (eaf-call-sync "execute_function_with_args" eaf--buffer-id "delete_pdf_pages" (format "%s" page-num)))
 
 ;;;###autoload
