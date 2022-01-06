@@ -472,6 +472,23 @@ This function works best if paired with a fuzzy search package."
                          (with-temp-file pdf-history-file-path "")))))
     (if history-pdf (eaf-open history-pdf))))
 
+(defun eaf-pdf-delete-pages (page-num)
+  " Delete pdf pages
+1 => delete page 1
+1 3 => delete page 1 2 3
+"
+  (interactive "s delete pages : ")
+  (let* ( confirmp start-page end-page (tmp-pages (s-split " " page-num)))
+    (setq start-page (car tmp-pages))
+    (if (> (length tmp-pages) 1)
+        (progn
+          (setq end-page (car (cdr tmp-pages)))
+          (setq confirmp (yes-or-no-p (format "confirm delete page %s to %s" start-page end-page))))
+      (setq confirmp (yes-or-no-p (format "confirm delete page %s" start-page))))
+    (if confirmp
+        (eaf-call-sync "execute_function_with_args" eaf--buffer-id "delete_pdf_pages" (format "%s" page-num))
+      (message "give up delete page"))))
+
 ;;;###autoload
 (defun eaf-open-office (file)
   "View Microsoft Office FILE as READ-ONLY PDF."
