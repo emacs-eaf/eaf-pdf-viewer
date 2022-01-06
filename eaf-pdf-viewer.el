@@ -472,14 +472,23 @@ This function works best if paired with a fuzzy search package."
                          (with-temp-file pdf-history-file-path "")))))
     (if history-pdf (eaf-open history-pdf))))
 
-(defun eaf-delete-pdf-pages (page-num)
+(defun eaf-pdf-delete-pages (page-num)
   " Delete pdf pages
 1 => delete page 1
 1 3 => delete page 1 2 3
 "
   (interactive "s delete pages : ")
-  (run-at-time 1 nil #'eaf-keyboard-quit)    ;; only press C-g can make QMessageBox work, after QMessageBox is called 
-  (eaf-call-sync "execute_function_with_args" eaf--buffer-id "delete_pdf_pages" (format "%s" page-num)))
+  (let* ( c start-page (end-page 0) (tmp-pages (s-split " " page-num)))
+    (setq start-page (car tmp-pages))
+    (if (> (length tmp-pages) 1)
+        (progn
+          (setq end-page (car (cdr tmp-pages)))
+          (message "confirm delete page %s to %s by type y or Y" start-page end-page))
+      (message "confirm delete page %s by type y or Y" start-page))
+    (setq c (read-char))
+    (if (or (string= (char-to-string c) "y")  (string= (char-to-string c) "Y") )
+        (eaf-call-sync "execute_function_with_args" eaf--buffer-id "delete_pdf_pages" (format "%s" page-num))
+      (message "give up delete page"))))
 
 ;;;###autoload
 (defun eaf-open-office (file)

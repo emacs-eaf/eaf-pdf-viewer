@@ -25,7 +25,6 @@ from PyQt5.QtGui import QColor, QPixmap, QImage, QFont, QCursor
 from PyQt5.QtGui import QPainter, QPolygon, QPalette
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
-from PyQt5.QtWidgets import QMessageBox
 from core.buffer import Buffer
 from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_var, get_emacs_vars, get_emacs_func_result, get_emacs_config_dir, get_emacs_theme_mode, get_emacs_theme_foreground, get_emacs_theme_background
 import fitz
@@ -386,17 +385,13 @@ class AppBuffer(Buffer):
             elif (end_page < 0)  or (end_page > self.buffer_widget.page_total_number):
                 message_to_emacs(" end page err")
             else:
-                if self.buffer_widget.ask_confirm('Are you sure delete page %d..%d?'%(start_page+1, end_page+1)):
-                    self.action_quit()
-                    self.buffer_widget.delete_pdf_pages(start_page, end_page)
+                self.buffer_widget.delete_pdf_pages(start_page, end_page)
         else:
             page = int(page_list[0]) - 1
             if (page < 0)  or (page > self.buffer_widget.page_total_number):
                 message_to_emacs("page err")
             else:
-                if self.buffer_widget.ask_confirm('Are you sure delete page %d?'%(page+1)):
-                    self.action_quit()
-                    self.buffer_widget.delete_pdf_page(page)
+                self.buffer_widget.delete_pdf_page(page)
 
     def fetch_marker_callback(self):
         return list(map(lambda x: x.lower(), self.buffer_widget.jump_link_key_cache_dict.keys()))
@@ -1899,17 +1894,6 @@ class PdfViewerWidget(QWidget):
     def jump_to_rect(self, page_index, rect):
         quad = rect.quad
         self.update_vertical_offset((page_index * self.page_height + quad.ul.y) * self.scale)
-
-    def ask_confirm(self, del_pages):
-        try:
-            reply = QMessageBox.question(self, ' ask confirm ', del_pages, QMessageBox.Yes | QMessageBox.Cancel, QMessageBox.Cancel)
-            if reply == QMessageBox.Yes:
-                return True
-            else:
-                return False
-        except Exception as e:
-            print(e)
-
 
     def delete_pdf_page (self, page):
         self.document.delete_page(page)
