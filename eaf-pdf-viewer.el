@@ -478,15 +478,14 @@ This function works best if paired with a fuzzy search package."
 1 3 => delete page 1 2 3
 "
   (interactive "s delete pages : ")
-  (let* ( c start-page (end-page 0) (tmp-pages (s-split " " page-num)))
+  (let* ( confirmp start-page end-page (tmp-pages (s-split " " page-num)))
     (setq start-page (car tmp-pages))
     (if (> (length tmp-pages) 1)
         (progn
           (setq end-page (car (cdr tmp-pages)))
-          (message "confirm delete page %s to %s by type y or Y" start-page end-page))
-      (message "confirm delete page %s by type y or Y" start-page))
-    (setq c (read-char))
-    (if (or (string= (char-to-string c) "y")  (string= (char-to-string c) "Y") )
+          (setq confirmp (yes-or-no-p (format "confirm delete page %s to %s" start-page end-page))))
+      (setq confirmp (yes-or-no-p (format "confirm delete page %s" start-page))))
+    (if confirmp 
         (eaf-call-sync "execute_function_with_args" eaf--buffer-id "delete_pdf_pages" (format "%s" page-num))
       (message "give up delete page"))))
 
