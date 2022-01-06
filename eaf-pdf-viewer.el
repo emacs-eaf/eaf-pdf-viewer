@@ -485,7 +485,7 @@ This function works best if paired with a fuzzy search package."
           (setq end-page (car (cdr tmp-pages)))
           (setq confirmp (yes-or-no-p (format "confirm delete page %s to %s" start-page end-page))))
       (setq confirmp (yes-or-no-p (format "confirm delete page %s" start-page))))
-    (if confirmp 
+    (if confirmp
         (eaf-call-sync "execute_function_with_args" eaf--buffer-id "delete_pdf_pages" (format "%s" page-num))
       (message "give up delete page"))))
 
