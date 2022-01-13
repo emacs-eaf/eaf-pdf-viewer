@@ -26,7 +26,11 @@ from PyQt5.QtGui import QPainter, QPolygon, QPalette
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
-from core.utils import touch, interactive, eval_in_emacs, message_to_emacs, open_url_in_new_tab, translate_text, atomic_edit, get_emacs_var, get_emacs_vars, get_emacs_func_result, get_emacs_config_dir, get_emacs_theme_mode, get_emacs_theme_foreground, get_emacs_theme_background
+from core.utils import (touch, interactive, eval_in_emacs, message_to_emacs,
+                        open_url_in_new_tab, translate_text, atomic_edit,
+                        get_emacs_var, get_emacs_vars, get_emacs_func_result,
+                        get_emacs_config_dir, get_emacs_theme_mode,
+                        get_emacs_theme_foreground, get_emacs_theme_background)
 import fitz
 import time
 import random
@@ -842,7 +846,6 @@ class PdfViewerWidget(QWidget):
         self.start_char_page_index = None
         self.last_char_rect_index = None
         self.last_char_page_index = None
-        self.select_area_annot_cache_dict = defaultdict(lambda: None)
         self.select_area_annot_quad_cache_dict = {}
 
         # text annot
@@ -1093,7 +1096,11 @@ class PdfViewerWidget(QWidget):
         for index in list(range(self.start_page_index, self.last_page_index)):
             # Get page image.
             hidpi_scale_factor = self.devicePixelRatioF()
+
             qpixmap = self.get_page_pixmap(index, self.scale * hidpi_scale_factor, self.rotation)
+
+            if self.is_select_mode:
+                qpixmap = self.mark_select_char_area(index, qpixmap)
 
             # Init render rect.
             render_width = qpixmap.width() / hidpi_scale_factor
@@ -1687,7 +1694,7 @@ class PdfViewerWidget(QWidget):
         self.page_cache_pixmap_dict.clear()
         self.update()
 
-    def mark_select_char_area(self):
+    def update_select_char_area(self):
         page_dict = self.get_select_char_list()
         for page_index, chars_list in page_dict.items():
             # Using multi line rect make of abnormity select area.
@@ -1723,28 +1730,32 @@ class PdfViewerWidget(QWidget):
 
             line_rect_list = list(map(check_rect, line_rect_list))
 
-            page = self.document[page_index]
-            old_annot = self.select_area_annot_cache_dict[page_index]
-            if old_annot:
-                page.delete_annot(old_annot)
-
             quad_list = list(map(lambda x: x.quad, line_rect_list))
-            annot = page.addHighlightAnnot(quad_list)
-            annot.parent = page
 
-            # refresh annot
-            self.select_area_annot_cache_dict[page_index] = annot
+            # refresh select quad
             self.select_area_annot_quad_cache_dict[page_index] = quad_list
 
-        self.page_cache_pixmap_dict.clear()
         self.update()
 
+    def mark_select_char_area(self, page_index, pixmap):
+        qp = QPainter(pixmap)
+        qp.setRenderHint(QPainter.Antialiasing)
+        # TODO: if want highlight background use `CompositionMode_DestinationAtop`
+        # make use customize setting
+        qp.setCompositionMode(QPainter.CompositionMode_SourceAtop)
+        qp.save()
+
+        quads = self.select_area_annot_quad_cache_dict[page_index]
+        for quad in quads:
+            qrect = quad.rect * self.scale
+            rect = QRect(qrect.x0, qrect.y0, qrect.width, qrect.height)
+            # TODO: make user curstom highlight color
+            qp.fillRect(rect, QColor("#409EFF"))
+
+        qp.restore()
+        return pixmap
+
     def delete_all_mark_select_area(self):
-        if self.select_area_annot_cache_dict:
-            for page_index, annot in self.select_area_annot_cache_dict.items():
-                if annot and annot.parent:
-                        annot.parent.delete_annot(annot)
-                self.select_area_annot_cache_dict[page_index] = None # restore cache
         self.last_char_page_index = None
         self.last_char_rect_index = None
         self.start_char_page_index = None
@@ -2108,7 +2119,7 @@ class PdfViewerWidget(QWidget):
                 self.start_char_rect_index, self.start_char_page_index = rect_index, page_index
             else:
                 self.last_char_rect_index, self.last_char_page_index = rect_index, page_index
-                self.mark_select_char_area()
+                self.update_select_char_area()
 
     def handle_click_link(self):
         event_link = self.get_event_link()
