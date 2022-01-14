@@ -1735,9 +1735,12 @@ class PdfViewerWidget(QWidget):
             # refresh select quad
             self.select_area_annot_quad_cache_dict[page_index] = quad_list
 
-        self.update()
-
     def mark_select_char_area(self, page_index, pixmap):
+        def quad_to_qrect(quad):
+            qrect = quad.rect * self.scale * self.devicePixelRatioF()
+            rect = QRect(qrect.x0, qrect.y0, qrect.width, qrect.height)
+            return rect
+
         qp = QPainter(pixmap)
         qp.setRenderHint(QPainter.Antialiasing)
         # TODO: if want highlight background use `CompositionMode_DestinationAtop`
@@ -1745,12 +1748,20 @@ class PdfViewerWidget(QWidget):
         qp.setCompositionMode(QPainter.CompositionMode_SourceAtop)
         qp.save()
 
+        # clear old highlight
+        if page_index in self.select_area_annot_quad_cache_dict:
+            old_quads = self.select_area_annot_quad_cache_dict[page_index]
+            for quad in old_quads:
+                qp.fillRect(quad_to_qrect(quad), qp.background())
+
+        # update select area quad list
+        self.update_select_char_area()
+
+        # draw new highlight
         quads = self.select_area_annot_quad_cache_dict[page_index]
         for quad in quads:
-            qrect = quad.rect * self.scale
-            rect = QRect(qrect.x0, qrect.y0, qrect.width, qrect.height)
             # TODO: make user curstom highlight color
-            qp.fillRect(rect, QColor("#409EFF"))
+            qp.fillRect(quad_to_qrect(quad), QColor("#409EFF"))
 
         qp.restore()
         return pixmap
@@ -2119,7 +2130,7 @@ class PdfViewerWidget(QWidget):
                 self.start_char_rect_index, self.start_char_page_index = rect_index, page_index
             else:
                 self.last_char_rect_index, self.last_char_page_index = rect_index, page_index
-                self.update_select_char_area()
+                self.update()
 
     def handle_click_link(self):
         event_link = self.get_event_link()
