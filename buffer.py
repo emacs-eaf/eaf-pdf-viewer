@@ -1743,8 +1743,6 @@ class PdfViewerWidget(QWidget):
 
         qp = QPainter(pixmap)
         qp.setRenderHint(QPainter.Antialiasing)
-        # TODO: if want highlight background use `CompositionMode_DestinationAtop`
-        # make use customize setting
         qp.setCompositionMode(QPainter.CompositionMode_SourceAtop)
         qp.save()
 
@@ -1760,8 +1758,7 @@ class PdfViewerWidget(QWidget):
         # draw new highlight
         quads = self.select_area_annot_quad_cache_dict[page_index]
         for quad in quads:
-            # TODO: make user curstom highlight color
-            qp.fillRect(quad_to_qrect(quad), QColor("#409EFF"))
+            qp.fillRect(quad_to_qrect(quad), QColor(self.text_highlight_annot_color))
 
         qp.restore()
         return pixmap
