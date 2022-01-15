@@ -1756,9 +1756,10 @@ class PdfViewerWidget(QWidget):
         self.update_select_char_area()
 
         # draw new highlight
-        quads = self.select_area_annot_quad_cache_dict[page_index]
-        for quad in quads:
-            qp.fillRect(quad_to_qrect(quad), QColor(self.text_highlight_annot_color))
+        if page_index in self.select_area_annot_quad_cache_dict:
+            quads = self.select_area_annot_quad_cache_dict[page_index]
+            for quad in quads:
+                qp.fillRect(quad_to_qrect(quad), QColor(self.text_highlight_annot_color))
 
         qp.restore()
         return pixmap
