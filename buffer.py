@@ -1738,7 +1738,7 @@ class PdfViewerWidget(QWidget):
     def mark_select_char_area(self, page_index, pixmap):
         def quad_to_qrect(quad):
             qrect = quad.rect * self.scale * self.devicePixelRatioF()
-            rect = QRect(qrect.x0, qrect.y0, qrect.width, qrect.height)
+            rect = QRect(int(qrect.x0), int(qrect.y0), int(qrect.width), int(qrect.height))
             return rect
 
         qp = QPainter(pixmap)
