@@ -20,7 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from PyQt5 import QtCore
-from PyQt5.QtCore import Qt, QRect, QPoint, QEvent, QTimer, QFileSystemWatcher
+from PyQt5.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QTimer, QFileSystemWatcher
 from PyQt5.QtGui import QColor, QPixmap, QImage, QFont, QCursor
 from PyQt5.QtGui import QPainter, QPolygon, QPalette
 from PyQt5.QtWidgets import QWidget
@@ -583,6 +583,9 @@ class PdfPage(fitz.Page):
         self._page_char_rect_list = self._init_page_char_rect_list()
         self._tight_margin_rect = self._init_tight_margin()
 
+        self.has_annot = page.firstAnnot
+        self.hovered_annot = None
+
     def __getattr__(self, attr):
         return getattr(self.page, attr)
 
@@ -684,7 +687,54 @@ class PdfPage(fitz.Page):
 
         img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format_RGBA8888)
         qpixmap = QPixmap.fromImage(img)
+
+        if self.has_annot:
+            qpixmap = self.draw_annots(qpixmap, scale)
+
         return qpixmap
+
+    def draw_annots(self, pixmap, scale):
+        if self.hovered_annot is None:
+            return pixmap
+
+        qp = QPainter(pixmap)
+        qp.setRenderHint(QPainter.Antialiasing)
+        qp.setCompositionMode(QPainter.CompositionMode_DestinationAtop)
+        annot = self.hovered_annot
+
+        r, g, b = getattr(annot.colors, "stroke", (1.0, 0.84, 0.08))
+        color = QColor(int(r) * 255, int(g) * 255, int(b) * 255, 153)
+
+        vertices = annot.vertices
+        for i in range(0, len(vertices), 4):
+            # top-left and bottom-right point
+            rect = fitz.Rect(vertices[i], vertices[i+3]) * scale
+            qrect = QRectF(rect.x0, rect.y0, rect.width, rect.height)
+            qp.fillRect(qrect, color)
+
+        if annot and annot.info["content"]:
+            QToolTip.showText(QCursor.pos(), annot.info["content"], None, QRect(), 10 * 1000)
+        else:
+            if QToolTip.isVisible():
+                QToolTip.hideText()
+
+        return pixmap
+
+    def can_update_annot(self, page_x, page_y):
+        if not self.has_annot:
+            return None, False
+
+        point = fitz.Point(page_x, page_y)
+        for annot in self.page.annots():
+            if point in annot.rect:
+                self.hovered_annot = annot
+                return annot, True
+
+        if self.hovered_annot is not None:
+            self.hovered_annot = None
+            return None, True
+
+        return None, False
 
     def with_invert_exclude_image(self, scale, pixmap):
         # steps:
@@ -850,6 +900,7 @@ class PdfViewerWidget(QWidget):
 
         # text annot
         self.is_hover_annot = False
+        self.hovered_annot = None
         self.edited_annot_page = (None, None)
         self.moved_annot_page = (None, None)
         # popup text annot
@@ -1790,65 +1841,19 @@ class PdfViewerWidget(QWidget):
 
         return None
 
-    def hover_annot(self, print_msg):
-        try:
-            if self.is_move_text_annot_mode:
-                return None, None
+    def check_annot(self):
+        ex, ey, page_index = self.get_cursor_absolute_position()
+        page = self.document[page_index]
 
-            ex, ey, page_index = self.get_cursor_absolute_position()
-            page = self.document[page_index]
-            annot = page.firstAnnot
-            if not annot:
-                return None, None
+        annot, ok = page.can_update_annot(ex, ey)
+        if not ok:
+            return
 
-            annots = []
-            while annot:
-                annots.append(annot)
-                annot = annot.next
+        self.is_hover_annot = annot is not None
 
-            is_hover_annot = False
-            is_hover_tex_annot = False
-            current_annot = None
-
-            for annot in annots:
-                if annot.info["title"] and fitz.Point(ex, ey) in annot.rect:
-                    is_hover_annot = True
-                    current_annot = annot
-                    opacity = 0.5
-                    if current_annot.type[0] == fitz.PDF_ANNOT_TEXT or \
-                       current_annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
-                        is_hover_tex_annot = True
-                else:
-                    opacity = 1.0
-                if opacity != annot.opacity:
-                    annot.set_opacity(opacity)
-                    annot.update()
-
-            # update and print message only if changed
-            if is_hover_annot != self.is_hover_annot:
-                if print_msg and self.is_buffer_focused():
-                    if not is_hover_annot:
-                        eval_in_emacs("eaf--clear-message", [])
-                    elif is_hover_tex_annot:
-                        message_to_emacs("[M-d]Delete annot [M-e]Edit text annot [M-r]Move text annot")
-                    else:
-                        message_to_emacs("[M-d]Delete annot")
-                self.is_hover_annot = is_hover_annot
-                self.page_cache_pixmap_dict.clear()
-                self.update()
-
-            if current_annot and current_annot.info["content"]:
-                if current_annot.info["id"] != self.last_hover_annot_id or not QToolTip.isVisible():
-                    QToolTip.showText(QCursor.pos(), current_annot.info["content"], None, QRect(), 10 * 1000)
-                self.last_hover_annot_id = current_annot.info["id"]
-            else:
-                if QToolTip.isVisible():
-                    QToolTip.hideText()
-
-            return page, current_annot
-        except Exception as e:
-            print("Hove Annot: ", e)
-            return None, None
+        self.hovered_annot = annot
+        self.page_cache_pixmap_dict.pop(page_index, None)
+        self.update()
 
     def save_annot(self):
         self.document.saveIncr()
@@ -1856,20 +1861,22 @@ class PdfViewerWidget(QWidget):
         self.update()
 
     def annot_handler(self, action=None):
-        page, annot = self.hover_annot(False)
+        if self.hovered_annot is None:
+            return
+        annot = self.hovered_annot
         if annot.parent:
             if action == "delete":
-                annot_action = AnnotAction.create_annot_action("Delete", page.page_index, annot)
+                annot_action = AnnotAction.create_annot_action("Delete", annot.parent.number, annot)
                 self.record_new_annot_action(annot_action)
-                page.delete_annot(annot)
+                annot.parent.delete_annot(annot)
                 self.save_annot()
             elif action == "edit":
-                self.edited_annot_page = (annot, page)
+                self.edited_annot_page = (annot, annot.parent.page)
                 if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
                    annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
                     atomic_edit(self.buffer_id, annot.info["content"].replace("\r", "\n"))
             elif action == "move":
-                self.moved_annot_page = (annot, page)
+                self.moved_annot_page = (annot, annot.parent.page)
                 if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
                    annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
                     self.enable_move_text_annot_mode()
@@ -2011,7 +2018,7 @@ class PdfViewerWidget(QWidget):
 
         if event.type() == QEvent.MouseMove:
             if self.hasMouseTracking():
-                self.hover_annot(True)
+                self.check_annot()
             else:
                 self.handle_select_mode()
 
