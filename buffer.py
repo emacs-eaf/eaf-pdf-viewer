@@ -19,30 +19,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from PyQt5 import QtCore
-from PyQt5.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QTimer, QFileSystemWatcher
+from PyQt5.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QPixmap, QImage, QFont, QCursor
-from PyQt5.QtGui import QPainter, QPolygon, QPalette
+from PyQt5.QtGui import QPainter, QPalette
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QToolTip
 from core.buffer import Buffer
-from core.utils import (touch, interactive, eval_in_emacs, message_to_emacs,
-                        open_url_in_new_tab, translate_text, atomic_edit,
+from core.utils import (interactive, eval_in_emacs, message_to_emacs,
+                        translate_text, atomic_edit,
                         get_emacs_var, get_emacs_vars, get_emacs_func_result,
                         get_emacs_config_dir, get_emacs_theme_mode,
                         get_emacs_theme_foreground, get_emacs_theme_background)
 import fitz
 import time
-import random
 import math
 import os
-import hashlib
-import json
-import platform
-import base64
 import threading
-from collections import defaultdict
-import re
 
 def get_page_crop_box(page):
     if hasattr(page, "page_cropbox"):
@@ -127,6 +119,8 @@ class AppBuffer(Buffer):
         if self.store_history:
             # Make sure file created.
             history_file = os.path.join(get_emacs_config_dir(), "pdf", "history", "log.txt")
+            from core.utils import touch
+            
             touch(history_file)
 
             # Read history.
@@ -316,6 +310,7 @@ class AppBuffer(Buffer):
             self.buffer_widget.annot_handler("move")
 
     def set_focus_text(self, new_text):
+        import base64
         new_text = base64.b64decode(new_text).decode("utf-8")
 
         if self.buffer_widget.is_select_mode:
@@ -339,6 +334,8 @@ class AppBuffer(Buffer):
         '''
         Return a list of annotations on page_index of types.
         '''
+        import json
+        
         if self.buffer_widget.document[page_index].firstAnnot is None:
             return None
 
@@ -362,6 +359,8 @@ class AppBuffer(Buffer):
         return json.dumps(result)
 
     def get_document_annots(self):
+        import json
+        
         annots = {}
         for page_index in range(self.buffer_widget.page_total_number):
             annot = self.get_page_annots(page_index)
@@ -378,6 +377,7 @@ class AppBuffer(Buffer):
         return ""
 
     def delete_pdf_pages(self, pages):
+        import re
         page_list = re.split(' +', pages)
         if len(page_list) > 1:
             start_page = int(page_list[0]) - 1
@@ -517,6 +517,8 @@ class PdfDocument(fitz.Document):
         '''
         Refresh content with PDF file changed.
         '''
+        from PyQt5.QtCore import QFileSystemWatcher
+
         self.watch_callback = callback
         self.file_changed_wacher = QFileSystemWatcher()
         self.file_changed_wacher.addPath(path)
@@ -825,7 +827,7 @@ class PdfPage(fitz.Page):
 
 class PdfViewerWidget(QWidget):
 
-    translate_double_click_word = QtCore.pyqtSignal(str)
+    translate_double_click_word = pyqtSignal(str)
 
     def __init__(self, url, background_color, buffer_id, synctex_info):
         super(PdfViewerWidget, self).__init__()
@@ -1202,6 +1204,8 @@ class PdfViewerWidget(QWidget):
         self.update_page_progress(painter)
 
     def draw_synctex_indicator(self, painter, x, y):
+        from PyQt5.QtGui import QPolygon
+        
         painter.save()
         arrow = QPolygon([QPoint(x, y), QPoint(x+26, y), QPoint(x+26, y-5),
                           QPoint(x+35, y+5),
@@ -1212,7 +1216,7 @@ class PdfViewerWidget(QWidget):
         painter.setBrush(fill_color)
         painter.setPen(border_color)
         painter.drawPolygon(arrow)
-        QtCore.QTimer().singleShot(5000, self.clear_synctex_info)
+        QTimer().singleShot(5000, self.clear_synctex_info)
         painter.restore()
 
     def clear_synctex_info(self):
@@ -1257,7 +1261,7 @@ class PdfViewerWidget(QWidget):
 
             # Start build context timer.
             self_obj.last_action_time = time.time()
-            QtCore.QTimer().singleShot(self_obj.page_cache_context_delay, self_obj.build_context_cache)
+            QTimer().singleShot(self_obj.page_cache_context_delay, self_obj.build_context_cache)
 
             return ret
 
@@ -1566,6 +1570,7 @@ class PdfViewerWidget(QWidget):
         elif "uri" in link:
             self.cleanup_links()
 
+            from core.utils import open_url_in_new_tab
             open_url_in_new_tab(link["uri"])
             message_to_emacs("Open " + link["uri"])
 
@@ -2067,6 +2072,7 @@ class PdfViewerWidget(QWidget):
                self.is_move_text_annot_handler_waiting:
                 self.move_text_annot_timer.start()
 
+            import platform
             if platform.system() == "Darwin":
                 eval_in_emacs('eaf-activate-emacs-window', [])
 
@@ -2173,6 +2179,8 @@ def inverted_color(color, inverted=False):
     return col
 
 def generate_random_key(count, letters):
+    import random
+    
     key_list = []
     key_len = 1 if count == 1 else math.ceil(math.log(count) / math.log(len(letters)))
     while count > 0:
