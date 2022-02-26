@@ -600,7 +600,7 @@ class PdfPage(fitz.Page):
             d = get_page_text(self.page)("rawdict")
             # cancel the cropbox, if not, will cause the pixmap set cropbox
             # don't begin on top-left(0, 0), page display black margin
-            set_page_crop_box(self.page)(self.page.MediaBox)
+            set_page_crop_box(self.page)(fitz.Rect(self.page.MediaBox.x0,0,self.page.MediaBox.x1,self.page.MediaBox.y1-self.page.MediaBox.y0))
             return d
         else:
             return get_page_text(self.page)("rawdict")
