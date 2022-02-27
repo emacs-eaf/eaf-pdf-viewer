@@ -120,7 +120,7 @@ class AppBuffer(Buffer):
             # Make sure file created.
             history_file = os.path.join(get_emacs_config_dir(), "pdf", "history", "log.txt")
             from core.utils import touch
-            
+
             touch(history_file)
 
             # Read history.
@@ -335,7 +335,7 @@ class AppBuffer(Buffer):
         Return a list of annotations on page_index of types.
         '''
         import json
-        
+
         if self.buffer_widget.document[page_index].firstAnnot is None:
             return None
 
@@ -360,7 +360,7 @@ class AppBuffer(Buffer):
 
     def get_document_annots(self):
         import json
-        
+
         annots = {}
         for page_index in range(self.buffer_widget.page_total_number):
             annot = self.get_page_annots(page_index)
@@ -1205,7 +1205,7 @@ class PdfViewerWidget(QWidget):
 
     def draw_synctex_indicator(self, painter, x, y):
         from PyQt5.QtGui import QPolygon
-        
+
         painter.save()
         arrow = QPolygon([QPoint(x, y), QPoint(x+26, y), QPoint(x+26, y-5),
                           QPoint(x+35, y+5),
@@ -2024,6 +2024,9 @@ class PdfViewerWidget(QWidget):
     def eventFilter(self, obj, event):
         if event.type() in [QEvent.MouseMove, QEvent.MouseButtonDblClick, QEvent.MouseButtonPress]:
             if not self.document.isPDF:
+                # workaround for epub click link
+                if event.type() == QEvent.MouseButtonPress and event.button() == Qt.RightButton:
+                    self.handle_click_link()
                 return False
 
         if event.type() == QEvent.MouseMove:
@@ -2180,7 +2183,7 @@ def inverted_color(color, inverted=False):
 
 def generate_random_key(count, letters):
     import random
-    
+
     key_list = []
     key_len = 1 if count == 1 else math.ceil(math.log(count) / math.log(len(letters)))
     while count > 0:
