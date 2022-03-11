@@ -982,7 +982,9 @@ class PdfViewerWidget(QWidget):
 
         # Inverted mode.
         self.inverted_mode = False
-        if self.pdf_dark_mode == "follow" or self.pdf_dark_mode == "force":
+        if (self.pdf_dark_mode == "force" or \
+            self.pdf_dark_mode == True or \
+            (self.pdf_dark_mode == "follow" and self.theme_mode == "dark")):
             self.inverted_mode = True
 
         # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
