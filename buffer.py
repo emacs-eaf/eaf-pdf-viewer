@@ -29,7 +29,7 @@ from core.utils import (interactive, eval_in_emacs, message_to_emacs,
                         translate_text, atomic_edit,
                         get_emacs_var, get_emacs_vars, get_emacs_func_result,
                         get_emacs_config_dir, get_emacs_theme_mode,
-                        get_emacs_theme_foreground, get_emacs_theme_background)
+                        get_emacs_theme_foreground, get_emacs_theme_background, get_app_dark_mode)
 import fitz
 import time
 import math
@@ -981,11 +981,7 @@ class PdfViewerWidget(QWidget):
         self.load_document(url)
 
         # Inverted mode.
-        self.inverted_mode = False
-        if (self.pdf_dark_mode == "force" or \
-            self.pdf_dark_mode == True or \
-            (self.pdf_dark_mode == "follow" and self.theme_mode == "dark")):
-            self.inverted_mode = True
+        self.inverted_mode = get_app_dark_mode("eaf-pdf-dark-mode")
 
         # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
         self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.isPDF
