@@ -837,6 +837,8 @@ class PdfViewerWidget(QWidget):
         self.background_color = background_color
         self.buffer_id = buffer_id
         self.user_name = get_emacs_var("user-full-name")
+        
+        self.is_button_press = False
 
         self.synctex_page_num = synctex_info[0]
         self.synctex_pos_x = synctex_info[1]
@@ -2020,6 +2022,11 @@ class PdfViewerWidget(QWidget):
             return rect_words[0][4]
 
     def eventFilter(self, obj, event):
+        if event.type() in [QEvent.MouseButtonPress]:
+            self.is_button_press = True
+        elif event.type() in [QEvent.MouseButtonRelease]:
+            self.is_button_press = False
+            
         if event.type() in [QEvent.MouseMove, QEvent.MouseButtonDblClick, QEvent.MouseButtonPress]:
             if not self.document.isPDF:
                 # workaround for epub click link
