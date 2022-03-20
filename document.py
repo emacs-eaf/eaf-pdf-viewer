@@ -1,0 +1,156 @@
+# -*- coding: utf-8 -*-
+
+# Copyright (C) 2018 Andy Stewart
+#
+# Author:     Andy Stewart <lazycat.manatee@gmail.com>
+# Maintainer: Andy Stewart <lazycat.manatee@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from core.utils import (message_to_emacs, get_emacs_vars)
+import fitz
+import time
+
+from importlib import import_module
+PdfPage = import_module("apps.eaf-pdf-viewer.page").PdfPage
+
+def get_page_crop_box(page):
+    if hasattr(page, "page_cropbox"):
+        return page.page_cropbox
+    else:
+        return page.pageCropBox
+
+def set_page_crop_box(page):
+    if hasattr(page, "set_cropbox"):
+        return page.set_cropbox
+    else:
+        return page.setCropBox
+
+class PdfDocument(fitz.Document):
+    def __init__(self, document):
+        self.document = document
+        self._is_trim_margin = False
+        self._page_cache_dict = {}
+        self._document_page_clip = None
+        self._document_page_change = lambda rect: None
+
+    def __getattr__(self, attr):
+        return getattr(self.document, attr)
+
+    def __getitem__(self, index):
+        if index in self._page_cache_dict:
+            page = self._page_cache_dict[index]
+            if not self._is_trim_margin:
+                return page
+
+            if page.CropBox == self._document_page_clip:
+                return page
+
+        page = PdfPage(self.document[index], index, self.document.isPDF)
+
+        # udpate the page clip
+        new_rect_clip = self.computer_page_clip(page.get_tight_margin_rect(), self._document_page_clip)
+        if new_rect_clip != self._document_page_clip:
+            self._document_page_clip = new_rect_clip
+            if self._is_trim_margin:
+                self._document_page_change(new_rect_clip)
+
+        if self._is_trim_margin:
+            return PdfPage(self.document[index], index, self.document.isPDF, self._document_page_clip)
+
+        return page
+
+    def computer_page_clip(self, *args):
+        '''Update the bestest max page clip.'''
+        dr = None
+        for r in args:
+            if r is None:
+                continue
+            if dr is None:
+                dr = r
+                continue
+            x0 = min(r.x0, dr.x0)
+            y0 = min(r.y0, dr.y0)
+            x1 = max(r.x1, dr.x1)
+            y1 = max(r.y1, dr.y1)
+            dr = fitz.Rect(x0, y0, x1, y1)
+        return dr
+
+    def reload_document(self, url):
+        self._page_cache_dict = {}
+        try:
+            self.document = fitz.open(url)
+        except Exception:
+            message_to_emacs("Failed to reload PDF file!")
+
+
+    def cache_page(self, index, page):
+        self._page_cache_dict[index] = page
+
+    def watch_file(self, path, callback):
+        '''
+        Refresh content with PDF file changed.
+        '''
+        from PyQt5.QtCore import QFileSystemWatcher
+
+        self.watch_callback = callback
+        self.file_changed_wacher = QFileSystemWatcher()
+        self.file_changed_wacher.addPath(path)
+        self.file_changed_wacher.fileChanged.connect(self.handle_file_changed)
+
+    def handle_file_changed(self, path):
+        '''
+        Use the QFileSystemWatcher watch file changed. If the watch file have been remove or rename,
+        this watch will auto remove.
+        '''
+        if path in self.file_changed_wacher.files():
+            try:
+                # Some program will generate `middle` file, but file already changed, fitz try to
+                # open the `middle` file caused error.
+                time.sleep(0.5)
+                self.reload_document(path)
+            except:
+                return
+
+            notify, = get_emacs_vars(["eaf-pdf-notify-file-changed"])
+            if notify:
+                message_to_emacs("Detected that %s has been changed. Refreshing buffer..." %path)
+
+            try:
+                self.watch_callback(path)
+            except Exception:
+                print("Failed to watch callback")
+
+
+    def toggle_trim_margin(self):
+        self._is_trim_margin = not self._is_trim_margin
+
+    def get_page_width(self):
+        if self.isPDF:
+            if self._is_trim_margin:
+                return self._document_page_clip.width
+            return get_page_crop_box(self.document)(0).width
+        else:
+            return self[0].clip.width
+
+    def get_page_height(self):
+        if self.isPDF:
+            if self._is_trim_margin:
+                return self._document_page_clip.height
+            return get_page_crop_box(self.document)(0).height
+        else:
+            return self[0].clip.height
+
+    def watch_page_size_change(self, callback):
+        self._document_page_change = callback
