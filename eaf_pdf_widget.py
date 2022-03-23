@@ -32,10 +32,15 @@ import fitz
 import time
 import math
 
-from importlib import import_module
-PdfDocument = import_module("apps.eaf-pdf-viewer.document").PdfDocument
-Utils = import_module("apps.eaf-pdf-viewer.utils")
-AnnotAction = import_module("apps.eaf-pdf-viewer.annot_action").AnnotAction
+from eaf_pdf_document import PdfDocument
+from eaf_pdf_utils import inverted_color
+from eaf_pdf_annot import AnnotAction
+
+def set_page_crop_box(page):
+    if hasattr(page, "set_cropbox"):
+        return page.set_cropbox
+    else:
+        return page.setCropBox
 
 class PdfViewerWidget(QWidget):
 
@@ -408,9 +413,9 @@ class PdfViewerWidget(QWidget):
         painter.setFont(self.font)
 
         if self.rect().width() <= render_width and not self.inverted_mode:
-            painter.setPen(Utils.inverted_color((self.theme_foreground_color), True))
+            painter.setPen(inverted_color((self.theme_foreground_color), True))
         else:
-            painter.setPen(Utils.inverted_color((self.theme_foreground_color)))
+            painter.setPen(inverted_color((self.theme_foreground_color)))
 
         # Update page progress
         self.update_page_progress(painter)

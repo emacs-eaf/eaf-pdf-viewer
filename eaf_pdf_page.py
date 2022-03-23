@@ -26,8 +26,7 @@ from PyQt5.QtWidgets import QToolTip
 from core.utils import (message_to_emacs, get_emacs_vars)
 import fitz
 
-from importlib import import_module
-Utils = import_module("apps.eaf-pdf-viewer.utils")
+from eaf_pdf_utils import generate_random_key
 
 def set_page_crop_box(page):
     if hasattr(page, "set_cropbox"):
@@ -308,7 +307,7 @@ class PdfPage(fitz.Page):
         cache_dict = {}
         if self.page.firstLink:
             links = self.page.get_links()
-            key_list = Utils.generate_random_key(len(links), letters)
+            key_list = generate_random_key(len(links), letters)
             for index, link in enumerate(links):
                 key = key_list[index]
                 link_rect = link["from"]

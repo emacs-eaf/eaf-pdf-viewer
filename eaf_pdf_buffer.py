@@ -27,8 +27,11 @@ import fitz
 import os
 import threading
 
-from importlib import import_module
-PdfViewerWidget = import_module("apps.eaf-pdf-viewer.widget").PdfViewerWidget
+# hack: add current dir path to sys.path for relative path import other modules.
+import sys
+sys.path.append(os.path.dirname(__file__))
+
+from eaf_pdf_widget import PdfViewerWidget
 
 class AppBuffer(Buffer):
     def __init__(self, buffer_id, url, arguments):
@@ -95,6 +98,7 @@ class AppBuffer(Buffer):
                 os.remove(self.url)
 
         super().destroy_buffer()
+        sys.path.remove(os.path.dirname(__file__))
 
     def get_table_file(self):
         return self.buffer_widget.table_file_path

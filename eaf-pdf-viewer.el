@@ -613,7 +613,7 @@ This function works best if paired with a fuzzy search package."
 ;;;; Register as module for EAF
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))
 
-(setq eaf-pdf-viewer-module-path (concat (file-name-directory load-file-name) "buffer.py"))
+(setq eaf-pdf-viewer-module-path (concat (file-name-directory load-file-name) "eaf_pdf_buffer.py"))
 (add-to-list 'eaf-app-module-path-alist '("pdf-viewer" . eaf-pdf-viewer-module-path))
 
 (add-to-list 'eaf-app-bookmark-handlers-alist '("pdf-viewer" . eaf--pdf-viewer-bookmark))

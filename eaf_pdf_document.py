@@ -22,8 +22,7 @@ from core.utils import (message_to_emacs, get_emacs_vars)
 import fitz
 import time
 
-from importlib import import_module
-PdfPage = import_module("apps.eaf-pdf-viewer.page").PdfPage
+from eaf_pdf_page import PdfPage
 
 def get_page_crop_box(page):
     if hasattr(page, "page_cropbox"):
