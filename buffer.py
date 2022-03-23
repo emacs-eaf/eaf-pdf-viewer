@@ -837,7 +837,7 @@ class PdfViewerWidget(QWidget):
         self.background_color = background_color
         self.buffer_id = buffer_id
         self.user_name = get_emacs_var("user-full-name")
-        
+
         self.is_button_press = False
 
         self.synctex_page_num = synctex_info[0]
@@ -1881,12 +1881,12 @@ class PdfViewerWidget(QWidget):
                 annot.parent.delete_annot(annot)
                 self.save_annot()
             elif action == "edit":
-                self.edited_annot_page = (annot, annot.parent.page)
+                self.edited_annot_page = (annot, annot.parent)
                 if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
                    annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
                     atomic_edit(self.buffer_id, annot.info["content"].replace("\r", "\n"))
             elif action == "move":
-                self.moved_annot_page = (annot, annot.parent.page)
+                self.moved_annot_page = (annot, annot.parent)
                 if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
                    annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
                     self.enable_move_text_annot_mode()
@@ -2026,7 +2026,7 @@ class PdfViewerWidget(QWidget):
             self.is_button_press = True
         elif event.type() in [QEvent.MouseButtonRelease]:
             self.is_button_press = False
-            
+
         if event.type() in [QEvent.MouseMove, QEvent.MouseButtonDblClick, QEvent.MouseButtonPress]:
             if not self.document.isPDF:
                 # workaround for epub click link
