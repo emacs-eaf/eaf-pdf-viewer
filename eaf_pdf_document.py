@@ -101,7 +101,7 @@ class PdfDocument(fitz.Document):
         '''
         Refresh content with PDF file changed.
         '''
-        from PyQt5.QtCore import QFileSystemWatcher
+        from PyQt6.QtCore import QFileSystemWatcher
 
         self.watch_callback = callback
         self.file_changed_wacher = QFileSystemWatcher()

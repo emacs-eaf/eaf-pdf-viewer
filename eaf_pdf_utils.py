@@ -21,7 +21,7 @@
 
 # utils function
 def inverted_color(color, inverted=False):
-    from PyQt5.QtGui import QColor
+    from PyQt6.QtGui import QColor
 
     color = QColor(color)
     if not inverted:

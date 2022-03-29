@@ -19,10 +19,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from PyQt5.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QTimer, pyqtSignal
-from PyQt5.QtGui import QColor, QFont, QCursor
-from PyQt5.QtGui import QPainter, QPalette
-from PyQt5.QtWidgets import QWidget
+from PyQt6.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QTimer, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QCursor
+from PyQt6.QtGui import QPainter, QPalette
+from PyQt6.QtWidgets import QWidget
 from core.utils import (interactive, eval_in_emacs, message_to_emacs,
                         atomic_edit, get_emacs_var, get_emacs_vars,
                         get_emacs_func_result, get_emacs_config_dir,
@@ -169,7 +169,8 @@ class PdfViewerWidget(QWidget):
 
         # Fill app background color
         pal = self.palette()
-        pal.setColor(QPalette.Background, self.background_color)
+        # pal.setColor(QPalette.Background, self.background_color)
+        pal.setColor(QPalette.ColorRole.Window, self.background_color)
         self.setAutoFillBackground(True)
         self.setPalette(pal)
 
@@ -178,7 +179,7 @@ class PdfViewerWidget(QWidget):
         self.page_annotate_padding_bottom = 10
 
         self.font = QFont()
-        self.font.setPointSize(12)
+        self.font.setPointSize(24)
 
         # Page cache.
         self.page_cache_pixmap_dict = {}
@@ -344,8 +345,8 @@ class PdfViewerWidget(QWidget):
 
         # Init painter.
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setCompositionMode(QPainter.CompositionMode_SourceAtop)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
         painter.save()
 
         # Draw background.
@@ -355,7 +356,7 @@ class PdfViewerWidget(QWidget):
             painter.setBrush(color)
             painter.setPen(color)
         else:
-            color = QColor(20, 20, 20, 255) if self.inverted_mode else Qt.white
+            color = QColor(20, 20, 20, 255) if self.inverted_mode else Qt.GlobalColor.white
             painter.setBrush(color)
             painter.setPen(color)
 
@@ -421,7 +422,7 @@ class PdfViewerWidget(QWidget):
         self.update_page_progress(painter)
 
     def draw_synctex_indicator(self, painter, x, y):
-        from PyQt5.QtGui import QPolygon
+        from PyQt6.QtGui import QPolygon
 
         painter.save()
         arrow = QPolygon([QPoint(x, y), QPoint(x+26, y), QPoint(x+26, y-5),
@@ -458,7 +459,7 @@ class PdfViewerWidget(QWidget):
                                    self.rect().y(),
                                    self.rect().width() - self.page_annotate_padding_right,
                                    self.rect().height() - self.page_annotate_padding_bottom),
-                             Qt.AlignRight | Qt.AlignBottom,
+                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
                              "{0}% ({1}/{2})".format(progress_percent, current_page, self.page_total_number))
 
     def build_context_wrap(f):
@@ -1239,25 +1240,25 @@ class PdfViewerWidget(QWidget):
             return rect_words[0][4]
 
     def eventFilter(self, obj, event):
-        if event.type() in [QEvent.MouseButtonPress]:
+        if event.type() in [QEvent.Type.MouseButtonPress]:
             self.is_button_press = True
-        elif event.type() in [QEvent.MouseButtonRelease]:
+        elif event.type() in [QEvent.Type.MouseButtonRelease]:
             self.is_button_press = False
 
-        if event.type() in [QEvent.MouseMove, QEvent.MouseButtonDblClick, QEvent.MouseButtonPress]:
+        if event.type() in [QEvent.Type.MouseMove, QEvent.Type.MouseButtonDblClick, QEvent.Type.MouseButtonPress]:
             if not self.document.isPDF:
                 # workaround for epub click link
-                if event.type() == QEvent.MouseButtonPress and event.button() == Qt.RightButton:
+                if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.RightButton:
                     self.handle_click_link()
                 return False
 
-        if event.type() == QEvent.MouseMove:
+        if event.type() == QEvent.Type.MouseMove:
             if self.hasMouseTracking():
                 self.check_annot()
             else:
                 self.handle_select_mode()
 
-        elif event.type() == QEvent.MouseButtonPress:
+        elif event.type() == QEvent.Type.MouseButtonPress:
             # add this detect release mouse event
             self.grabMouse()
 
@@ -1266,22 +1267,22 @@ class PdfViewerWidget(QWidget):
                 self.cleanup_select()
 
             if self.is_popup_text_annot_mode:
-                if event.button() != Qt.LeftButton:
+                if event.button() != Qt.MouseButton.LeftButton:
                     self.disable_popup_text_annot_mode()
             elif self.is_inline_text_annot_mode:
-                if event.button() != Qt.LeftButton:
+                if event.button() != Qt.MouseButton.LeftButton:
                     self.disable_inline_text_annot_mode()
             elif self.is_move_text_annot_mode:
-                if event.button() != Qt.LeftButton:
+                if event.button() != Qt.MouseButton.LeftButton:
                     self.disable_move_text_annot_mode()
             else:
-                if event.button() == Qt.LeftButton:
+                if event.button() == Qt.MouseButton.LeftButton:
                     # In order to catch mouse move event when drap mouse.
                     self.setMouseTracking(False)
-                elif event.button() == Qt.RightButton:
+                elif event.button() == Qt.MouseButton.RightButton:
                     self.handle_click_link()
 
-        elif event.type() == QEvent.MouseButtonRelease:
+        elif event.type() == QEvent.Type.MouseButtonRelease:
             # Capture move event, event without holding down the mouse.
             self.setMouseTracking(True)
             self.releaseMouse()
@@ -1301,12 +1302,12 @@ class PdfViewerWidget(QWidget):
             if platform.system() == "Darwin":
                 eval_in_emacs('eaf-activate-emacs-window', [])
 
-        elif event.type() == QEvent.MouseButtonDblClick:
+        elif event.type() == QEvent.Type.MouseButtonDblClick:
             self.disable_popup_text_annot_mode()
             self.disable_inline_text_annot_mode()
-            if event.button() == Qt.RightButton:
+            if event.button() == Qt.MouseButton.RightButton:
                 self.handle_translate_word()
-            elif event.button() == Qt.LeftButton:
+            elif event.button() == Qt.MouseButton.LeftButton:
                 self.handle_synctex_backward_edit()
                 return True
 

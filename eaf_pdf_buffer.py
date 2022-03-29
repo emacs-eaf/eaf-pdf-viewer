@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from PyQt5.QtGui import QColor
+from PyQt6.QtGui import QColor
 from core.buffer import Buffer
 from core.utils import (eval_in_emacs, message_to_emacs,translate_text,
                         atomic_edit, get_emacs_vars, get_emacs_config_dir)

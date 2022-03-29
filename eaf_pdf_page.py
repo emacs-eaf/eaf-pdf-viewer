@@ -19,10 +19,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from PyQt5.QtCore import QRect, QRectF
-from PyQt5.QtGui import QColor, QPixmap, QImage, QCursor
-from PyQt5.QtGui import QPainter
-from PyQt5.QtWidgets import QToolTip
+from PyQt6.QtCore import QRect, QRectF
+from PyQt6.QtGui import QColor, QPixmap, QImage, QCursor
+from PyQt6.QtGui import QPainter
+from PyQt6.QtWidgets import QToolTip
 from core.utils import (message_to_emacs, get_emacs_vars)
 import fitz
 
@@ -187,7 +187,7 @@ class PdfPage(fitz.Page):
         if not invert_image and invert:
             pixmap = self.with_invert_exclude_image(scale, pixmap)
 
-        img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format_RGBA8888)
+        img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format.Format_RGBA8888)
         qpixmap = QPixmap.fromImage(img)
 
         if self.has_annot:
