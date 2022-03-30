@@ -33,6 +33,33 @@ sys.path.append(os.path.dirname(__file__))
 
 from eaf_pdf_widget import PdfViewerWidget
 
+class SynctexInfo():
+    def __init__(self, info):
+        self.page_num = None
+        self.pos_x = None
+        self.pos_y = None
+
+        if info.startswith("synctex_info"):
+            self.parse_info(info.split("=")[1])
+
+    def parse_info(self, content):
+        synctex_info = content.split(":")
+        if len(synctex_info) != 3:
+            return
+
+        self.page_num = int(synctex_info[0])
+        self.pos_x = float(synctex_info[1])
+        self.pos_y = float(synctex_info[2])
+
+    def update(self, info):
+        self.parse_info(info)
+
+    def reset(self):
+        self.page_num = None
+        self.pos_x = None
+        self.pos_y = None
+
+
 class AppBuffer(Buffer):
     def __init__(self, buffer_id, url, arguments):
         Buffer.__init__(self, buffer_id, url, arguments, False)
@@ -44,14 +71,7 @@ class AppBuffer(Buffer):
 
         self.delete_temp_file = arguments == "temp_pdf_file"
 
-        self.synctex_info = [None, None, None]
-        if arguments.startswith("synctex_info"):
-            synctex_info = arguments.split("=")[1].split(":")
-            page_num = int(synctex_info[0])
-            pos_x = float(synctex_info[1])
-            pos_y = float(synctex_info[2])
-            self.synctex_info = [page_num, pos_x, pos_y]
-
+        self.synctex_info = SynctexInfo(arguments)
         self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), buffer_id, self.synctex_info))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
 
@@ -142,7 +162,7 @@ class AppBuffer(Buffer):
             (scroll_offset, scale, read_mode, inverted_mode) = session_data.split(":")
         else:
             (scroll_offset, scale, read_mode, inverted_mode, rotation) = session_data.split(":")
-        if self.synctex_info[0] == None:
+        if self.synctex_info.page_num == None:
             self.buffer_widget.scroll_offset = float(scroll_offset)
         self.buffer_widget.scale = float(scale)
         self.buffer_widget.read_mode = read_mode
@@ -155,15 +175,9 @@ class AppBuffer(Buffer):
     def jump_to_page_with_num(self, num):
         self.buffer_widget.jump_to_page(int(num))
 
-    def jump_to_page_synctex(self, synctex_info):
-        synctex_info = synctex_info.split(":")
-
-        page_num = int(synctex_info[0])
-        self.buffer_widget.synctex_page_num = page_num
-        self.buffer_widget.jump_to_page(page_num)
-
-        self.buffer_widget.synctex_pos_x = float(synctex_info[1])
-        self.buffer_widget.synctex_pos_y = float(synctex_info[2])
+    def jump_to_page_synctex(self, info):
+        self.buffer_widget.synctex_info.update(info)
+        self.buffer_widget.jump_to_page(self.buffer_widget.synctex_info.page_num)
         self.buffer_widget.update()
         return ""
 
