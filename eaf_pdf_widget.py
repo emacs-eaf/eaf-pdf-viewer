@@ -1020,8 +1020,8 @@ class PdfViewerWidget(QWidget):
             return rect
 
         qp = QPainter(pixmap)
-        qp.setRenderHint(QPainter.Antialiasing)
-        qp.setCompositionMode(QPainter.CompositionMode_SourceAtop)
+        qp.setRenderHint(QPainter.RenderHint.Antialiasing)
+        qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
         qp.save()
 
         # clear old highlight
