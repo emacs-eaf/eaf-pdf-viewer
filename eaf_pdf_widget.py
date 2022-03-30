@@ -57,9 +57,7 @@ class PdfViewerWidget(QWidget):
 
         self.is_button_press = False
 
-        self.synctex_page_num = synctex_info[0]
-        self.synctex_pos_x = synctex_info[1]
-        self.synctex_pos_y = synctex_info[2]
+        self.synctex_info = synctex_info
 
         self.installEventFilter(self)
         self.setMouseTracking(True)
@@ -207,8 +205,8 @@ class PdfViewerWidget(QWidget):
         self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.isPDF
 
         # synctex init page
-        if self.synctex_page_num != None:
-            self.jump_to_page(self.synctex_page_num)
+        if self.synctex_info.page_num != None:
+            self.jump_to_page(self.synctex_info.page_num)
 
     def load_document(self, url):
         if self.page_cache_pixmap_dict:
@@ -400,8 +398,8 @@ class PdfViewerWidget(QWidget):
             painter.drawPixmap(rect, qpixmap)
 
             # Draw an indicator for synctex position
-            if self.synctex_page_num == index + 1 and self.synctex_pos_y != None:
-                indicator_pos_y = int(self.synctex_pos_y * self.scale)
+            if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y != None:
+                indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
                 self.draw_synctex_indicator(painter, 15, indicator_pos_y)
 
             render_y += render_height
@@ -434,13 +432,8 @@ class PdfViewerWidget(QWidget):
         painter.setBrush(fill_color)
         painter.setPen(border_color)
         painter.drawPolygon(arrow)
-        QTimer().singleShot(5000, self.clear_synctex_info)
+        QTimer().singleShot(5000, self.synctex_info.reset)
         painter.restore()
-
-    def clear_synctex_info(self):
-        self.synctex_page = None
-        self.synctex_pos_x = None
-        self.synctex_pos_y = None
 
     def update_page_progress(self, painter):
         # Show in mode-line-position
