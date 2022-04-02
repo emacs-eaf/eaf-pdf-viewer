@@ -47,3 +47,13 @@ def generate_random_key(count, letters):
             key_list.append(key)
             count -= 1
     return key_list
+
+def is_old_version(v, v_bound='1.18.2'):
+    from packaging import version
+
+    return version.parse(v) < version.parse(v_bound)
+
+
+import fitz
+
+support_hit_max = is_old_version(fitz.VersionBind)
