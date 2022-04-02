@@ -33,7 +33,7 @@ import time
 import math
 
 from eaf_pdf_document import PdfDocument
-from eaf_pdf_utils import inverted_color
+from eaf_pdf_utils import inverted_color, support_hit_max
 from eaf_pdf_annot import AnnotAction
 
 def set_page_crop_box(page):
@@ -795,8 +795,13 @@ class PdfViewerWidget(QWidget):
         self.search_term = text
 
         self.search_text_index = 0
+
         for page_index in range(self.page_total_number):
-            quads_list = self.document.search_page_for(page_index, text, hit_max=999, quads=True)
+            if support_hit_max:
+                quads_list = self.document.search_page_for(page_index, text, hit_max=999, quads=True)
+            else:
+                quads_list = self.document.search_page_for(page_index, text, quads=True)
+
             if quads_list:
                 for index, quad in enumerate(quads_list):
                     search_text_offset = (page_index * self.page_height + quad.ul.y) * self.scale

@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import QToolTip
 from core.utils import (message_to_emacs, get_emacs_vars)
 import fitz
 
-from eaf_pdf_utils import generate_random_key
+from eaf_pdf_utils import generate_random_key, support_hit_max
 
 def set_page_crop_box(page):
     if hasattr(page, "set_cropbox"):
@@ -288,7 +288,11 @@ class PdfPage(fitz.Page):
             self._mark_link_annot_list = []
 
     def mark_search_text(self, keyword):
-        quads_list = self.page.searchFor(keyword, hit_max=999, quads=True)
+        if support_hit_max:
+            quads_list = self.page.searchFor(keyword, hit_max=999, quads=True)
+        else:
+            quads_list = self.page.search_for(keyword, quads=True)
+
         if quads_list:
             for quads in quads_list:
                 annot = self.page.addHighlightAnnot(quads)
