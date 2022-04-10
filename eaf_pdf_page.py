@@ -200,8 +200,8 @@ class PdfPage(fitz.Page):
             return pixmap
 
         qp = QPainter(pixmap)
-        qp.setRenderHint(QPainter.Antialiasing)
-        qp.setCompositionMode(QPainter.CompositionMode_DestinationAtop)
+        qp.setRenderHint(QPainter.RenderHint.Antialiasing)
+        qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationAtop)
         annot = self.hovered_annot
 
         r, g, b = getattr(annot.colors, "stroke", (1.0, 0.84, 0.08))
