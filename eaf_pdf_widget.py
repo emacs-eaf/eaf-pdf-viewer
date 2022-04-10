@@ -1097,9 +1097,7 @@ class PdfViewerWidget(QWidget):
                 self.save_annot()
             elif action == "edit":
                 self.edited_annot_page = (annot, annot.parent)
-                if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
-                   annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
-                    atomic_edit(self.buffer_id, annot.info["content"].replace("\r", "\n"))
+                atomic_edit(self.buffer_id, annot.info["content"].replace("\r", "\n"))
             elif action == "move":
                 self.moved_annot_page = (annot, annot.parent)
                 if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
@@ -1109,16 +1107,16 @@ class PdfViewerWidget(QWidget):
     def edit_annot_text(self, annot_text):
         annot, page = self.edited_annot_page
         if annot.parent:
-            if annot.type[0] == fitz.PDF_ANNOT_TEXT:
-                annot.setInfo(content=annot_text)
-                message_to_emacs("Updated popup text annot!")
-            elif annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
+            if annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
                 annot.setInfo(content=annot_text)
                 point = annot.rect.top_left
                 fontsize = self.inline_text_annot_fontsize
                 rect = self.compute_annot_rect_inline_text(point, fontsize, annot_text)
                 annot.setRect(rect)
                 message_to_emacs("Updated inline text annot!")
+            else:
+                annot.setInfo(content=annot_text)
+                message_to_emacs("Updated annot!")
             annot.update()
             self.save_annot()
         self.edited_annot_page = (None, None)
