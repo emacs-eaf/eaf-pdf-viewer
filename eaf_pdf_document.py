@@ -97,6 +97,12 @@ class PdfDocument(fitz.Document):
     def cache_page(self, index, page):
         self._page_cache_dict[index] = page
 
+    def remove_cache(self, index):
+        self._page_cache_dict.pop(index)
+
+    def reset_cache(self):
+        self._page_cache_dict.clear()
+
     def watch_file(self, path, callback):
         '''
         Refresh content with PDF file changed.

@@ -211,6 +211,7 @@ class PdfViewerWidget(QWidget):
     def load_document(self, url):
         if self.page_cache_pixmap_dict:
             self.page_cache_pixmap_dict.clear()
+            self.document.reset_cache()
 
         # Load document first.
         try:
@@ -330,6 +331,7 @@ class PdfViewerWidget(QWidget):
         for cache_index in cache_index_list:
             if cache_index not in index_list:
                 self.page_cache_pixmap_dict.pop(cache_index)
+                self.document.remove_cache(cache_index)
 
     def resizeEvent(self, event):
         # Update scale attributes after widget resize.
