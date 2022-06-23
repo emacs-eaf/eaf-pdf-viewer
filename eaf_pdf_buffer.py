@@ -300,7 +300,7 @@ class AppBuffer(Buffer):
         '''
         import json
 
-        if self.buffer_widget.document[page_index].firstAnnot is None:
+        if self.buffer_widget.document[page_index].first_annot is None:
             return None
 
         # Notes: annots need the pymupdf above 1.16.4 version.

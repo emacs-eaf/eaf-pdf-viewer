@@ -61,7 +61,7 @@ class AnnotAction():
 
     @staticmethod
     def find_annot_of_annot_action(page, annot_action):
-        annot = page.firstAnnot
+        annot = page.first_annot
 
         while annot:
             if (annot.info["id"] == annot_action.annot_id):

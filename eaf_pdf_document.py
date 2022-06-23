@@ -28,13 +28,13 @@ def get_page_crop_box(page):
     if hasattr(page, "page_cropbox"):
         return page.page_cropbox
     else:
-        return page.pageCropBox
+        return page.page_cropbox
 
 def set_page_crop_box(page):
     if hasattr(page, "set_cropbox"):
         return page.set_cropbox
     else:
-        return page.setCropBox
+        return page.set_cropbox
 
 class PdfDocument(fitz.Document):
     def __init__(self, document):
@@ -53,10 +53,10 @@ class PdfDocument(fitz.Document):
             if not self._is_trim_margin:
                 return page
 
-            if page.CropBox == self._document_page_clip:
+            if page.cropbox == self._document_page_clip:
                 return page
 
-        page = PdfPage(self.document[index], index, self.document.isPDF)
+        page = PdfPage(self.document[index], index, self.document.is_pdf)
 
         # udpate the page clip
         new_rect_clip = self.computer_page_clip(page.get_tight_margin_rect(), self._document_page_clip)
@@ -66,7 +66,7 @@ class PdfDocument(fitz.Document):
                 self._document_page_change(new_rect_clip)
 
         if self._is_trim_margin:
-            return PdfPage(self.document[index], index, self.document.isPDF, self._document_page_clip)
+            return PdfPage(self.document[index], index, self.document.is_pdf, self._document_page_clip)
 
         return page
 
@@ -142,7 +142,7 @@ class PdfDocument(fitz.Document):
         self._is_trim_margin = not self._is_trim_margin
 
     def get_page_width(self):
-        if self.isPDF:
+        if self.is_pdf:
             if self._is_trim_margin:
                 return self._document_page_clip.width
             return get_page_crop_box(self.document)(0).width
@@ -150,7 +150,7 @@ class PdfDocument(fitz.Document):
             return self[0].clip.width
 
     def get_page_height(self):
-        if self.isPDF:
+        if self.is_pdf:
             if self._is_trim_margin:
                 return self._document_page_clip.height
             return get_page_crop_box(self.document)(0).height

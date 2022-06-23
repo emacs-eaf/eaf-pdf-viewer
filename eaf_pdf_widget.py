@@ -40,7 +40,7 @@ def set_page_crop_box(page):
     if hasattr(page, "set_cropbox"):
         return page.set_cropbox
     else:
-        return page.setCropBox
+        return page.set_cropbox
 
 class PdfViewerWidget(QWidget):
 
@@ -202,7 +202,7 @@ class PdfViewerWidget(QWidget):
         self.inverted_mode = get_app_dark_mode("eaf-pdf-dark-mode")
 
         # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
-        self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.isPDF
+        self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.is_pddf
 
         # synctex init page
         if self.synctex_info.page_num != None:
@@ -224,7 +224,7 @@ class PdfViewerWidget(QWidget):
         self.document.watch_page_size_change(self.update_page_size)
         self.page_width = self.document.get_page_width()
         self.page_height = self.document.get_page_height()
-        self.page_total_number = self.document.pageCount
+        self.page_total_number = self.document.page_count
 
         # Register file watcher, when document is change, re-calling this function.
         self.document.watch_file(url, self.load_document)
@@ -294,7 +294,7 @@ class PdfViewerWidget(QWidget):
             self.page_cache_scale = scale
 
         page = self.document[index]
-        if self.document.isPDF:
+        if self.document.is_pdf:
             page.set_rotation(rotation)
 
         if self.is_mark_link:
@@ -648,7 +648,7 @@ class PdfViewerWidget(QWidget):
     @interactive
     def toggle_inverted_image_mode(self):
         # Toggle inverted image status.
-        if not self.document.isPDF:
+        if not self.document.is_pdf:
             message_to_emacs("Only support PDF!")
             return
 
@@ -660,12 +660,12 @@ class PdfViewerWidget(QWidget):
 
     @interactive
     def toggle_mark_link(self): #  mark_link will add underline mark on link, using prompt link position.
-        self.is_mark_link = not self.is_mark_link and self.document.isPDF
+        self.is_mark_link = not self.is_mark_link and self.document.is_pdf
         self.page_cache_pixmap_dict.clear()
         self.update()
 
     def update_rotate(self, rotate):
-        if self.document.isPDF:
+        if self.document.is_pdf:
             current_page_index = self.start_page_index
             self.rotation = rotate
             self.page_width, self.page_height = self.page_height, self.page_width
@@ -762,7 +762,7 @@ class PdfViewerWidget(QWidget):
 
 
     def add_mark_jump_link_tips(self):
-        self.is_jump_link = True and self.document.isPDF
+        self.is_jump_link = True and self.document.is_pdf
         self.page_cache_pixmap_dict.clear()
         self.update()
 
@@ -1058,7 +1058,7 @@ class PdfViewerWidget(QWidget):
         return page.annots(types)
 
     def find_annot_by_id(self, page, annot_id):
-        annot = page.firstAnnot
+        annot = page.first_annot
         if not annot:
             return None
 
@@ -1244,7 +1244,7 @@ class PdfViewerWidget(QWidget):
             self.is_button_press = False
 
         if event.type() in [QEvent.Type.MouseMove, QEvent.Type.MouseButtonDblClick, QEvent.Type.MouseButtonPress]:
-            if not self.document.isPDF:
+            if not self.document.is_pdf:
                 # workaround for epub click link
                 if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.RightButton:
                     self.handle_click_link()

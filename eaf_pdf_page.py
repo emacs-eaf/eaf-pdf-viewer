@@ -71,11 +71,11 @@ def get_page_image_bbox(page):
         return page.getImageBbox
 
 class PdfPage(fitz.Page):
-    def __init__(self, page, page_index, isPDF, clip=None):
+    def __init__(self, page, page_index, is_pdf, clip=None):
         self.page = page
         self.page_index = page_index
-        self.isPDF = isPDF
-        self.clip = clip or page.CropBox
+        self.is_pdf = is_pdf
+        self.clip = clip or page.cropbox
 
         self._mark_link_annot_list = []
         self._mark_search_annot_list = []
@@ -85,14 +85,14 @@ class PdfPage(fitz.Page):
         self._page_char_rect_list = self._init_page_char_rect_list()
         self._tight_margin_rect = self._init_tight_margin()
 
-        self.has_annot = page.firstAnnot
+        self.has_annot = page.first_annot
         self.hovered_annot = None
 
     def __getattr__(self, attr):
         return getattr(self.page, attr)
 
     def _init_page_rawdict(self):
-        if self.isPDF:
+        if self.is_pdf:
             # Must set CropBox before get page rawdict , if no,
             # the rawdict bbox coordinate is wrong
             # cause the select text failed
@@ -100,7 +100,7 @@ class PdfPage(fitz.Page):
             d = get_page_text(self.page)("rawdict")
             # cancel the cropbox, if not, will cause the pixmap set cropbox
             # don't begin on top-left(0, 0), page display black margin
-            set_page_crop_box(self.page)(fitz.Rect(self.page.MediaBox.x0,0,self.page.MediaBox.x1,self.page.MediaBox.y1-self.page.MediaBox.y0))
+            set_page_crop_box(self.page)(fitz.Rect(self.page.mediabox.x0,0,self.page.mediabox.x1,self.page.mediabox.y1-self.page.mediabox.y0))
             return d
         else:
             return get_page_text(self.page)("rawdict")
@@ -142,13 +142,13 @@ class PdfPage(fitz.Page):
             y1 = max(y1, r.y1)
             r = fitz.Rect(x0, y0, x1, y1)
         if r is None:
-            return self.page.CropBox
+            return self.page.cropbox
         return r
 
     def get_tight_margin_rect(self):
         # if current page don't computer tight rect
         # return None
-        if self._tight_margin_rect == self.page.MediaBox:
+        if self._tight_margin_rect == self.page.mediabox:
             return None
         return self._tight_margin_rect
 
@@ -170,14 +170,14 @@ class PdfPage(fitz.Page):
     def set_rotation(self, rotation):
         set_page_rotation(self.page)(rotation)
         if rotation % 180 != 0:
-            self.page_width = self.page.CropBox.height
-            self.page_height = self.page.CropBox.width
+            self.page_width = self.page.cropbox.height
+            self.page_height = self.page.cropbox.width
         else:
-            self.page_width = self.page.CropBox.width
-            self.page_height = self.page.CropBox.height
+            self.page_width = self.page.cropbox.width
+            self.page_height = self.page.cropbox.height
 
     def get_qpixmap(self, scale, invert, invert_image=False):
-        if self.isPDF:
+        if self.is_pdf:
             set_page_crop_box(self.page)(self.clip)
         pixmap = get_page_pixmap(self.page)(matrix=fitz.Matrix(scale, scale), alpha=True)
 
