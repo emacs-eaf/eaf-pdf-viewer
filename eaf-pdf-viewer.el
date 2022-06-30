@@ -487,7 +487,7 @@ This function works best if paired with a fuzzy search package."
         (setq file-content (f-read-text pdf-history-file-path))
         (dolist (each-file (split-string file-content "\n" t))
           (unless (file-exists-p each-file)
-            (setq file-content (replace-regexp-in-string (rx--to-expr (format! "%s\n"  each-file)) "" file-content))
+            (setq file-content (replace-regexp-in-string (rx--to-expr (format "%s\n"  each-file)) "" file-content))
             (message "delete %s record from history" each-file)))
         (f-write-text file-content 'utf-8 pdf-history-file-path))))
 
