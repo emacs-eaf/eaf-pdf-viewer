@@ -50,10 +50,13 @@ def generate_random_key(count, letters):
 
 def is_old_version(v, v_bound='1.18.2'):
     from packaging import version
-
     return version.parse(v) < version.parse(v_bound)
 
+def is_doc_new_name(v, v_bound='1.19.0'):
+    from packaging import version
+    return version.parse(v) >= version.parse(v_bound)
 
 import fitz
 
 support_hit_max = is_old_version(fitz.VersionBind)
+use_new_doc_name = is_doc_new_name(fitz.VersionBind)
