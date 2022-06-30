@@ -32,6 +32,7 @@ import sys
 sys.path.append(os.path.dirname(__file__))
 
 from eaf_pdf_widget import PdfViewerWidget
+from eaf_pdf_utils import use_new_doc_name
 
 class SynctexInfo():
     def __init__(self, info):
@@ -289,7 +290,10 @@ class AppBuffer(Buffer):
 
     def get_toc(self):
         result = ""
-        toc = self.buffer_widget.document.getToC()
+        if use_new_doc_name:
+            toc = self.buffer_widget.document.get_toc()
+        else:
+            toc = self.buffer_widget.document.getToC()
         for line in toc:
             result += "{0}{1} {2}\n".format("".join("    " * (line[0] - 1)), line[1], line[2])
         return result

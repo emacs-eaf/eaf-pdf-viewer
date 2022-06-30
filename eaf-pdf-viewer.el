@@ -472,6 +472,25 @@ This function works best if paired with a fuzzy search package."
                          (with-temp-file pdf-history-file-path "")))))
     (if history-pdf (eaf-open history-pdf))))
 
+(defun eaf-pdf-delete-invalid-file-record-from-history ()
+  " delete invalid file record from eaf pdf history file"
+  (interactive)
+  (let* ((pdf-history-file-path
+          (concat eaf-config-location
+                  (file-name-as-directory "pdf")
+                  (file-name-as-directory "history")
+                  "log.txt"))
+         (history-pattern "^\\(.+\\)\\.pdf$")
+         (history-file-exists (file-exists-p pdf-history-file-path))
+         file-content)
+    (when history-file-exists
+        (setq file-content (f-read-text pdf-history-file-path))
+        (dolist (each-file (split-string file-content "\n" t))
+          (unless (file-exists-p each-file)
+            (setq file-content (replace-regexp-in-string (rx--to-expr (format! "%s\n"  each-file)) "" file-content))
+            (message "delete %s record from history" each-file)))
+        (f-write-text file-content 'utf-8 pdf-history-file-path))))
+
 (defun eaf-pdf-delete-pages (page-num)
   " Delete pdf pages
 1 => delete page 1
