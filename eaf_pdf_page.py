@@ -275,9 +275,9 @@ class PdfPage(fitz.Page):
 
 
     def add_mark_link(self):
-        if self.page.firstLink:
+        if self.page.first_link:
             for link in self.page.get_links():
-                annot = self.page.addUnderlineAnnot(link["from"])
+                annot = self.page.add_underline_annot(link["from"])
                 annot.parent = self.page # Must assign annot parent, else delete_annot cause parent is None problem.
                 self._mark_link_annot_list.append(annot)
 
@@ -295,7 +295,7 @@ class PdfPage(fitz.Page):
 
         if quads_list:
             for quads in quads_list:
-                annot = self.page.addHighlightAnnot(quads)
+                annot = self.page.add_highlight_annot(quads)
                 annot.parent = self.page
                 self._mark_search_annot_list.append(annot)
 
@@ -309,7 +309,7 @@ class PdfPage(fitz.Page):
     def mark_jump_link_tips(self, letters):
         fontsize, = get_emacs_vars(["eaf-pdf-marker-fontsize"])
         cache_dict = {}
-        if self.page.firstLink:
+        if self.page.first_link:
             links = self.page.get_links()
             key_list = generate_random_key(len(links), letters)
             for index, link in enumerate(links):

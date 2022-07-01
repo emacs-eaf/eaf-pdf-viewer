@@ -687,32 +687,32 @@ class PdfViewerWidget(QWidget):
         page = self.document[annot_action.page_index]
         quads = annot_action.annot_quads
         if (annot_action.annot_type == fitz.PDF_ANNOT_HIGHLIGHT):
-            new_annot = page.addHighlightAnnot(quads)
-            new_annot.setColors(stroke=annot_action.annot_stroke_color)
+            new_annot = page.add_highlight_annot(quads)
+            new_annot.set_colors(stroke=annot_action.annot_stroke_color)
             new_annot.update()
         elif (annot_action.annot_type == fitz.PDF_ANNOT_STRIKE_OUT):
-            new_annot = page.addStrikeoutAnnot(quads)
+            new_annot = page.add_strikeout_annot(quads)
         elif (annot_action.annot_type == fitz.PDF_ANNOT_UNDERLINE):
-            new_annot = page.addUnderlineAnnot(quads)
-            new_annot.setColors(stroke=annot_action.annot_stroke_color)
+            new_annot = page.add_underline_annot(quads)
+            new_annot.set_colors(stroke=annot_action.annot_stroke_color)
             new_annot.update()
         elif (annot_action.annot_type == fitz.PDF_ANNOT_SQUIGGLY):
-            new_annot = page.addSquigglyAnnot(quads)
+            new_annot = page.add_squiggly_annot(quads)
         elif (annot_action.annot_type == fitz.PDF_ANNOT_TEXT):
-            new_annot = page.addTextAnnot(annot_action.annot_top_left_point,
+            new_annot = page.add_text_annot(annot_action.annot_top_left_point,
                                           annot_action.annot_content, icon="Note")
         elif (annot_action.annot_type == fitz.PDF_ANNOT_FREE_TEXT):
             color = QColor(self.inline_text_annot_color)
             color_r, color_g, color_b = color.redF(), color.greenF(), color.blueF()
             text_color = [color_r, color_g, color_b]
-            new_annot = page.add_Freetext_Annot(annot_action.annot_rect,
+            new_annot = page.add_freetext_annot(annot_action.annot_rect,
                                               annot_action.annot_content,
                                               fontsize=self.inline_text_annot_fontsize,
                                               fontname="Arial",
                                               text_color=text_color, align=0)
 
         if new_annot:
-            new_annot.setInfo(title=annot_action.annot_title)
+            new_annot.set_info(title=annot_action.annot_title)
             new_annot.parent = page
             self.save_annot()
 
@@ -892,24 +892,24 @@ class PdfViewerWidget(QWidget):
             page = self.document[page_index]
 
             if annot_type == "highlight":
-                new_annot = page.addHighlightAnnot(quads)
+                new_annot = page.add_highlight_annot(quads)
                 qcolor = QColor(self.text_highlight_annot_color)
-                new_annot.setColors(stroke=qcolor.getRgbF()[0:3])
+                new_annot.set_colors(stroke=qcolor.getRgbF()[0:3])
                 new_annot.update()
             elif annot_type == "strikeout":
-                new_annot = page.addStrikeoutAnnot(quads)
+                new_annot = page.add_strikeout_annot(quads)
             elif annot_type == "underline":
-                new_annot = page.addUnderlineAnnot(quads)
+                new_annot = page.add_underline_annot(quads)
                 qcolor = QColor(self.text_underline_annot_color)
-                new_annot.setColors(stroke=qcolor.getRgbF()[0:3])
+                new_annot.set_colors(stroke=qcolor.getRgbF()[0:3])
                 new_annot.update()
             elif annot_type == "squiggly":
-                new_annot = page.addSquigglyAnnot(quads)
+                new_annot = page.add_squiggly_annot(quads)
             elif annot_type == "text":
                 point = quads[-1].lr # lower right point
-                new_annot = page.addTextAnnot(point, text, icon="Note")
+                new_annot = page.add_text_annot(point, text, icon="Note")
 
-            new_annot.setInfo(title=self.user_name)
+            new_annot.set_info(title=self.user_name)
             new_annot.parent = page
 
             annot_action = AnnotAction.create_annot_action("Add", page_index, new_annot)
@@ -924,8 +924,8 @@ class PdfViewerWidget(QWidget):
             return
 
         page = self.document[page_index]
-        new_annot = page.addTextAnnot(point, text, icon="Note")
-        new_annot.setInfo(title=self.user_name)
+        new_annot = page.add_text_annot(point, text, icon="Note")
+        new_annot.set_info(title=self.user_name)
         new_annot.parent = page
 
         annot_action = AnnotAction.create_annot_action("Add", page_index, new_annot)
@@ -955,10 +955,10 @@ class PdfViewerWidget(QWidget):
         color = QColor(self.inline_text_annot_color)
         color_r, color_g, color_b = color.redF(), color.greenF(), color.blueF()
         text_color = [color_r, color_g, color_b]
-        new_annot = page.add_Freetext_Annot(annot_rect, text,
+        new_annot = page.add_freetext_annot(annot_rect, text,
                                           fontsize=fontsize, fontname=fontname,
                                           text_color=text_color, align = 0)
-        new_annot.setInfo(title=self.user_name)
+        new_annot.set_info(title=self.user_name)
         new_annot.parent = page
 
         annot_action = AnnotAction.create_annot_action("Add", page_index, new_annot)
@@ -1111,14 +1111,14 @@ class PdfViewerWidget(QWidget):
         annot, page = self.edited_annot_page
         if annot.parent:
             if annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
-                annot.setInfo(content=annot_text)
+                annot.set_info(content=annot_text)
                 point = annot.rect.top_left
                 fontsize = self.inline_text_annot_fontsize
                 rect = self.compute_annot_rect_inline_text(point, fontsize, annot_text)
-                annot.setRect(rect)
+                annot.set_rect(rect)
                 message_to_emacs("Updated inline text annot!")
             else:
-                annot.setInfo(content=annot_text)
+                annot.set_info(content=annot_text)
                 message_to_emacs("Updated annot!")
             annot.update()
             self.save_annot()
@@ -1132,7 +1132,7 @@ class PdfViewerWidget(QWidget):
                 (point, page_index) = self.move_text_annot_pos
                 rect = annot.rect
                 new_rect = fitz.Rect(point, point.x + rect.width, point.y + rect.height)
-                annot.setRect(new_rect)
+                annot.set_rect(new_rect)
                 annot.update()
                 self.save_annot()
         self.moved_annot_page = (None, None)
