@@ -383,7 +383,9 @@ Non-nil means don't invert images."
   (let* ((raw-value (org-element-property :raw-value (org-element-at-point)))
          (page-num (and (string-match (rx (1+ num) string-end) raw-value) (match-string 0 raw-value)))
          )
-    (eaf-call-sync "execute_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num))))
+    (if page-num
+        (eaf-call-sync "execute_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num))
+      (error "Has no corresponding page number!"))))
 
 (defun eaf-pdf-outline-view ()
   "View the specific page."
@@ -699,7 +701,7 @@ This function works best if paired with a fuzzy search package."
                                       )
                                  (if page-num
                                      (list level (string-trim-right title) (string-to-number page-num))
-                                   (error "Title: %s has no corresponding page-num number!" title)))) t))
+                                   (error "Title: %s has no corresponding page number!" title)))) t))
          )
     (eaf-call-async "execute_function_with_args" eaf--buffer-id "edit_outline_confirm" payload)))
 
