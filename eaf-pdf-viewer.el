@@ -202,6 +202,7 @@ Non-nil means don't invert images."
     ("J" . "select_left_tab")
     ("K" . "select_right_tab")
     ("o" . "eaf-pdf-outline")
+    ("O" . "eaf-pdf-outline-edit")
     ("T" . "toggle_trim_white_margin"))
   "The keybinding of EAF PDF Viewer."
   :type '(alist :key-type (string :tag "Key bindings (e.g. \"C-n\", \"<f4>\", etc.)")
@@ -277,6 +278,14 @@ Non-nil means don't invert images."
     map)
   "Keymap used in `eaf-pdf-outline-mode'.")
 
+(defvar eaf-pdf-outline-edit-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap org-open-at-point] #'eaf-pdf-outline-edit-jump)
+    (define-key map [remap org-ctrl-c-ctrl-c] #'eaf-pdf-outline-edit-buffer-confirm)
+    (define-key map [remap org-kill-note-or-show-branches] #'kill-buffer-and-window)
+    map)
+  "Keymap used in `eaf-pdf-outline-edit-mode'.")
+
 (define-derived-mode eaf-pdf-outline-mode outline-mode "PDF Outline"
   "EAF pdf outline mode."
   (setq-local outline-regexp "\\( *\\).")
@@ -286,9 +295,21 @@ Non-nil means don't invert images."
   (toggle-truncate-lines 1)
   (setq buffer-read-only t))
 
+(define-derived-mode eaf-pdf-outline-edit-mode org-mode "PDF Outline Editing"
+  "EAF pdf outline edit mode."
+  (toggle-truncate-lines 1))
+
 (defun eaf-pdf-outline-buffer-name (&optional pdf-buffer)
   (unless pdf-buffer (setq pdf-buffer (current-buffer)))
   (format "*Outline: %s*"
+          (if (bufferp pdf-buffer)
+              (buffer-name pdf-buffer)
+            pdf-buffer)))
+
+(defun eaf-pdf-outline-edit-buffer-name (&optional pdf-buffer)
+  (interactive)
+  (unless pdf-buffer (setq pdf-buffer (if (local-variable-p 'eaf-pdf-outline-pdf-document) eaf-pdf-outline-pdf-document (current-buffer))))
+  (format "*Outline Edit: %s*"
           (if (bufferp pdf-buffer)
               (buffer-name pdf-buffer)
             pdf-buffer)))
@@ -320,6 +341,28 @@ Non-nil means don't invert images."
     ;; Popup outline buffer.
     (pop-to-buffer outline-buf)))
 
+(defun eaf-pdf-outline-edit ()
+  (interactive)
+  (let* ((pdf-buffer (if (local-variable-p 'eaf-pdf-outline-pdf-document) eaf-pdf-outline-pdf-document (current-buffer)))
+         (buffer-id (buffer-local-value 'eaf--buffer-id (get-buffer pdf-buffer)))
+         (toc (eaf-call-sync "execute_function" buffer-id "get_toc_to_edit"))
+         (page-number (string-to-number (or (eaf-call-sync "execute_function" eaf--buffer-id "current_page") "1")))
+         (outline-edit-buffer (generate-new-buffer (eaf-pdf-outline-edit-buffer-name))))
+
+    (with-current-buffer outline-edit-buffer
+      (setq buffer-read-only nil)
+      (erase-buffer)
+      (insert toc)
+      (setq toc (mapcar #'(lambda (line)
+                            (string-to-number (car (last (split-string line " ")))))
+                        (butlast (split-string (buffer-string) "\n"))))
+      (goto-line (seq-count (apply-partially #'>= page-number) toc))
+      (eaf-pdf-outline-edit-mode)
+      (set (make-local-variable 'eaf--buffer-id) buffer-id)
+      )
+
+    (pop-to-buffer outline-edit-buffer)))
+
 (defun eaf-pdf-outline-jump ()
   "Jump into specific page."
   (interactive)
@@ -333,6 +376,14 @@ Non-nil means don't invert images."
     (when eaf-pdf--outline-window-configuration
       (set-window-configuration eaf-pdf--outline-window-configuration)
       (setq eaf-pdf--outline-window-configuration nil))))
+
+(defun eaf-pdf-outline-edit-jump ()
+  "Jump into specific page."
+  (interactive)
+  (let* ((raw-value (org-element-property :raw-value (org-element-at-point)))
+         (page-num (and (string-match (rx (1+ num) string-end) raw-value) (match-string 0 raw-value)))
+         )
+    (eaf-call-sync "execute_function_with_args" eaf--buffer-id "jump_to_page_with_num" (format "%s" page-num))))
 
 (defun eaf-pdf-outline-view ()
   "View the specific page."
@@ -637,6 +688,20 @@ This function works best if paired with a fuzzy search package."
           (find-file-other-window tex-file))
         (goto-line line-num)))))
 
+(defun eaf-pdf-outline-edit-buffer-confirm ()
+  (interactive)
+  (let* ((payload
+          (org-element-map (org-element-parse-buffer) 'headline
+            (lambda (headline) (let* ((raw-value (org-element-property :raw-value headline))
+                                      (level (org-element-property :level headline))
+                                      (page-num (and (string-match (rx (1+ num) string-end) raw-value) (match-string 0 raw-value)))
+                                      (title (format "%s" (string-trim-right raw-value page-num)))
+                                      )
+                                 (if page-num
+                                     (list level (string-trim-right title) (string-to-number page-num))
+                                   (error "Title: %s has no corresponding page-num number!" title)))) t))
+         )
+    (eaf-call-async "execute_function_with_args" eaf--buffer-id "edit_outline_confirm" payload)))
 
 ;;;; Register as module for EAF
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))

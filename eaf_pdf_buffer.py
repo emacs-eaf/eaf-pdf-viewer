@@ -367,3 +367,16 @@ class AppBuffer(Buffer):
 
     def fetch_marker_callback(self):
         return list(map(lambda x: x.lower(), self.buffer_widget.jump_link_key_cache_dict.keys()))
+
+    def get_toc_to_edit (self):
+        result = ""
+        if use_new_doc_name:
+            toc = self.buffer_widget.document.get_toc()
+        else:
+            toc = self.buffer_widget.document.getToC()
+        for line in toc:
+            result += "{0} {1} {2}\n".format("".join("*" * line[0]), line[1], line[2])
+        return result
+
+    def edit_outline_confirm(self, payload):
+        self.buffer_widget.edit_outline_confirm(payload)

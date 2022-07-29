@@ -95,4 +95,5 @@ Override this behavior
 | `J` | select_left_tab |
 | `K` | select_right_tab |
 | `o` | eaf-pdf-outline |
+| `O` | eaf-pdf-outline-edit |
 | `T` | toggle_trim_white_margin |

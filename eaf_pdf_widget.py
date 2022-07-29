@@ -1386,3 +1386,8 @@ class PdfViewerWidget(QWidget):
         ex, ey, page_index = self.get_cursor_absolute_position()
         if page_index is not None:
             eval_in_emacs("eaf-pdf-synctex-backward-edit", [self.url, page_index + 1, ex, ey])
+
+    def edit_outline_confirm(self, payload):
+        self.document.set_toc(payload)
+        self.document.saveIncr()
+        message_to_emacs("Updated PDF Table of Contents successfully.")
