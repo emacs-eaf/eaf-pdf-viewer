@@ -280,7 +280,7 @@ Non-nil means don't invert images."
 
 (defvar eaf-pdf-outline-edit-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [remap org-open-at-point] #'eaf-pdf-outline-edit-jump)
+    (define-key map [remap org-insert-heading-respect-content] #'eaf-pdf-outline-edit-jump)
     (define-key map [remap org-ctrl-c-ctrl-c] #'eaf-pdf-outline-edit-buffer-confirm)
     (define-key map [remap org-kill-note-or-show-branches] #'kill-buffer-and-window)
     map)
