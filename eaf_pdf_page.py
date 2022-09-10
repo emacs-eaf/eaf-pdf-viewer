@@ -93,15 +93,18 @@ class PdfPage(fitz.Page):
 
     def _init_page_rawdict(self):
         if self.is_pdf:
-            # Must set CropBox before get page rawdict , if no,
-            # the rawdict bbox coordinate is wrong
-            # cause the select text failed
-            set_page_crop_box(self.page)(self.clip)
-            d = get_page_text(self.page)("rawdict")
-            # cancel the cropbox, if not, will cause the pixmap set cropbox
-            # don't begin on top-left(0, 0), page display black margin
-            set_page_crop_box(self.page)(fitz.Rect(self.page.mediabox.x0,0,self.page.mediabox.x1,self.page.mediabox.y1-self.page.mediabox.y0))
-            return d
+            try:
+                # Must set CropBox before get page rawdict , if no,
+                # the rawdict bbox coordinate is wrong
+                # cause the select text failed
+                set_page_crop_box(self.page)(self.clip)
+                d = get_page_text(self.page)("rawdict")
+                # cancel the cropbox, if not, will cause the pixmap set cropbox
+                # don't begin on top-left(0, 0), page display black margin
+                set_page_crop_box(self.page)(fitz.Rect(self.page.mediabox.x0,0,self.page.mediabox.x1,self.page.mediabox.y1-self.page.mediabox.y0))
+                return d
+            except:
+                return get_page_text(self.page)("rawdict")
         else:
             return get_page_text(self.page)("rawdict")
 
@@ -178,7 +181,11 @@ class PdfPage(fitz.Page):
 
     def get_qpixmap(self, scale, invert, invert_image=False):
         if self.is_pdf:
-            set_page_crop_box(self.page)(self.clip)
+            try:
+                set_page_crop_box(self.page)(self.clip)
+            except:
+                pass
+            
         pixmap = get_page_pixmap(self.page)(matrix=fitz.Matrix(scale, scale), alpha=True)
 
         if invert:
