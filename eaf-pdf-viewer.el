@@ -171,6 +171,7 @@ Non-nil means don't invert images."
     ("=" . "zoom_in")
     ("-" . "zoom_out")
     ("w" . "zoom_fit_text_width")
+    ("W" . "zoom_close_to_text_width")
     ("g" . "scroll_to_begin")
     ("G" . "scroll_to_end")
     ("p" . "jump_to_page")
