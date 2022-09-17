@@ -616,7 +616,16 @@ class PdfViewerWidget(QWidget):
         self.read_mode = "fit_to_customize"
         page_index = self.start_page_index
         text_width = self.document._document_page_clip.width
-        self.scale_to(self.rect().width() * 0.99 / text_width)
+        self.scale_to(self.rect().width() * 0.95 / text_width)
+        self.scroll_center_horizontal()
+        self.update()
+
+    @interactive
+    def zoom_close_to_text_width(self):
+        self.read_mode = "fit_to_customize"
+        page_index = self.start_page_index
+        text_width = self.document._document_page_clip.width
+        self.scale_to(self.rect().width() * 0.8 / text_width)
         self.scroll_center_horizontal()
         self.update()
 
