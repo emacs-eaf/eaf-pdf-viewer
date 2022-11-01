@@ -1,17 +1,14 @@
 {
     "pip": {
         "linux": [
-            "fitz",
             "packaging",
             "pymupdf"
         ],
         "win32": [
-            "fitz",
             "packaging",
             "pymupdf"
         ],
         "darwin": [
-            "fitz",
             "packaging",
             "pymupdf"
         ]
