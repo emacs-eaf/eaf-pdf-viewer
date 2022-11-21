@@ -655,6 +655,17 @@ This function works best if paired with a fuzzy search package."
     (message "Can not found %s" eaf-pdf-synctex-path)
     nil))
 
+(defun eaf-pdf-jump-to-page (url page-num)
+  (let* ((pdf-url (expand-file-name url))
+         (opened-buffer (eaf-pdf--find-buffer pdf-url))
+         (synctex-info (format "%s:0:0" page-num)))
+
+    (if (not opened-buffer)
+        (eaf-open pdf-url "pdf-viewer" (format "synctex_info=%s" synctex-info))
+      (display-buffer opened-buffer)
+      (eaf-call-sync "execute_function_with_args" eaf--buffer-id
+                     "jump_to_page_synctex" (format "%s" synctex-info)))))
+
 (defun eaf-pdf-synctex-forward-view ()
   "View the PDF file of Tex synchronously."
   (interactive)
