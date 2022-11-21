@@ -650,7 +650,7 @@ This function works best if paired with a fuzzy search package."
         (if (and synctex-result (string-match "Input:\\(.*\\)\nLine:\\([0-9]+\\)\n" synctex-result))
             (setq tex-file  (expand-file-name (match-string 1 synctex-result))
                   line-num (string-to-number (match-string 2 synctex-result)))
-          (message "Execute %s failed!" synctex-view-command))
+          (message "Failed to get tex file and line number. Did you run latex with `--synctex=1'?"))
         `(,tex-file ,line-num))
     (message "Can not found %s" eaf-pdf-synctex-path)
     nil))
