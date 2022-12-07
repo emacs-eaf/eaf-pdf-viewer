@@ -542,7 +542,11 @@ class PdfViewerWidget(QWidget):
             self.scale_to_height()
 
     def max_scroll_offset(self):
-        return self.scale * self.page_height * self.page_total_number - self.rect().height()
+        max_scroll_offset = self.scale * self.page_height * self.page_total_number - self.rect().height()
+        if max_scroll_offset < 0:
+            max_scroll_offset = 0
+            # self.scale = self.rect().height() / (self.page_height * self.page_total_number)
+        return max_scroll_offset
 
     @interactive
     def reload_document(self):
@@ -602,7 +606,9 @@ class PdfViewerWidget(QWidget):
     @interactive
     def zoom_in(self):
         self.read_mode = "fit_to_customize"
-        self.scale_to(min(10, self.scale + self.pdf_zoom_step))
+        text_width = self.document.get_page_width()
+        fit_to_width = self.rect().width() / text_width
+        self.scale_to(min(max(10, fit_to_width), self.scale + self.pdf_zoom_step))
         self.update()
 
     @interactive
@@ -614,18 +620,16 @@ class PdfViewerWidget(QWidget):
     @interactive
     def zoom_fit_text_width(self):
         self.read_mode = "fit_to_customize"
-        page_index = self.start_page_index
-        text_width = self.document._document_page_clip.width
-        self.scale_to(self.rect().width() * 0.95 / text_width)
+        text_width = self.document.get_page_width()
+        self.scale_to(self.rect().width() / text_width)
         self.scroll_center_horizontal()
         self.update()
 
     @interactive
     def zoom_close_to_text_width(self):
         self.read_mode = "fit_to_customize"
-        page_index = self.start_page_index
-        text_width = self.document._document_page_clip.width
-        self.scale_to(self.rect().width() * 0.8 / text_width)
+        text_width = self.document.get_page_width()
+        self.scale_to(self.rect().width() * 0.9 / text_width)
         self.scroll_center_horizontal()
         self.update()
 
@@ -1191,9 +1195,12 @@ class PdfViewerWidget(QWidget):
 
         # set page coordinate
         render_width = self.page_width * self.scale
+        render_height = self.page_height * self.scale
         render_x = int((self.rect().width() - render_width) / 2)
         if self.read_mode == "fit_to_customize" and render_width >= self.rect().width():
             render_x = max(min(render_x + self.horizontal_offset, 0), self.rect().width() - render_width)
+        if (ex < render_x or ex > render_x + render_width or ey > render_height):
+            return 0, 0, 0
 
         # computer absolute coordinate of page
         x = (ex - render_x) * 1.0 / self.scale
