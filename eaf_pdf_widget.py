@@ -542,7 +542,11 @@ class PdfViewerWidget(QWidget):
             self.scale_to_height()
 
     def max_scroll_offset(self):
-        return self.scale * self.page_height * self.page_total_number - self.rect().height()
+        max_scroll_offset = self.scale * self.page_height * self.page_total_number - self.rect().height()
+        if max_scroll_offset < 0:
+            max_scroll_offset = 0
+            # self.scale = self.rect().height() / (self.page_height * self.page_total_number)
+        return max_scroll_offset
 
     @interactive
     def reload_document(self):
@@ -1191,9 +1195,12 @@ class PdfViewerWidget(QWidget):
 
         # set page coordinate
         render_width = self.page_width * self.scale
+        render_height = self.page_height * self.scale
         render_x = int((self.rect().width() - render_width) / 2)
         if self.read_mode == "fit_to_customize" and render_width >= self.rect().width():
             render_x = max(min(render_x + self.horizontal_offset, 0), self.rect().width() - render_width)
+        if (ex < render_x or ex > render_x + render_width or ey > render_height):
+            return 0, 0, 0
 
         # computer absolute coordinate of page
         x = (ex - render_x) * 1.0 / self.scale

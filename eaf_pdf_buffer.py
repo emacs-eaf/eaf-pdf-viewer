@@ -165,6 +165,8 @@ class AppBuffer(Buffer):
             (scroll_offset, scale, read_mode, inverted_mode, rotation) = session_data.split(":")
         if self.synctex_info.page_num == None:
             self.buffer_widget.scroll_offset = float(scroll_offset)
+        if self.buffer_widget.scroll_offset < 0:
+            self.buffer_widget.scroll_offset = 0 
         self.buffer_widget.scale = float(scale)
         self.buffer_widget.read_mode = read_mode
         self.buffer_widget.rotation = int(rotation)
