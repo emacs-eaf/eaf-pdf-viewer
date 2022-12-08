@@ -717,6 +717,26 @@ This function works best if paired with a fuzzy search package."
          )
     (eaf-call-async "execute_function_with_args" eaf--buffer-id "edit_outline_confirm" payload)))
 
+(defun eaf-pdf-open-with-Adobe-Acrobat ()
+  (interactive)
+  (let* ((page-number (or (eaf-call-sync "execute_function" eaf--buffer-id "current_page") "1")))
+    (do-applescript
+     (concat "tell application \"Adobe Acrobat\"\n"
+             "	try\n"
+     (format "		open \"%s\" options \"page=%s\"\n" eaf--buffer-url page-number)
+             "	on error\n"
+     (format "		display alert \"Cannot open the file\" & \"%s\" \n" eaf--buffer-url)
+             "		return false\n"
+             "	end try\n"
+             "end tell\n"
+             "\n"
+             "tell application \"Adobe Acrobat\"\n"
+             "	tell PDF Window 1\n"
+     (format "		goto page %s \n" page-number)
+             "	end tell\n"
+             "end tell\n"
+             ))))
+
 ;;;; Register as module for EAF
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))
 
