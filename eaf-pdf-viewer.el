@@ -188,6 +188,7 @@ Non-nil means don't invert images."
     ("C-/" . "undo_annot_action")
     ("C-?" . "redo_annot_action")
     ("x" . "close_buffer")
+    ("z" . "eaf-ocr-buffer")
     ("r" . "reload_document")
     ("C-<right>" . "rotate_clockwise")
     ("C-<left>" . "rotate_counterclockwise")
