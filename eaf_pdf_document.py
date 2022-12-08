@@ -130,7 +130,7 @@ class PdfDocument(fitz.Document):
 
             notify, = get_emacs_vars(["eaf-pdf-notify-file-changed"])
             if notify:
-                message_to_emacs("Detected that %s has been changed. Refreshing buffer..." %path)
+                message_to_emacs("Detected that {} has been changed. Refreshing buffer...".format(path))
 
             try:
                 self.watch_callback(path)

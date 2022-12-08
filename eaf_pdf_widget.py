@@ -173,8 +173,8 @@ class PdfViewerWidget(QWidget):
         self.setPalette(pal)
 
         # Init font.
-        self.page_annotate_padding_right = 10
-        self.page_annotate_padding_bottom = 10
+        self.page_annotate_padding_x = 10
+        self.page_annotate_padding_y = 10
 
         self.font = QFont()
         self.font.setPointSize(24)
@@ -199,7 +199,7 @@ class PdfViewerWidget(QWidget):
         self.load_document(url)
 
         # Inverted mode.
-        self.inverted_mode = get_app_dark_mode("eaf-pdf-dark-mode")
+        self.inverted_mode = False
 
         # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
         self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.is_pddf
@@ -386,7 +386,7 @@ class PdfViewerWidget(QWidget):
         painter.translate(0, translate_y)
 
         # Render pages in visible area.
-        (render_x, render_y, render_width, render_height) = 0, 0, 0, 0
+        (self.page_render_x, self.page_render_y, self.page_render_width, self.page_render_height) = 0, 0, 0, 0
         for index in list(range(self.start_page_index, self.last_page_index)):
             # Get page image.
             hidpi_scale_factor = self.devicePixelRatioF()
@@ -397,20 +397,20 @@ class PdfViewerWidget(QWidget):
                 qpixmap = self.mark_select_char_area(index, qpixmap)
 
             # Init render rect.
-            render_width = qpixmap.width() / hidpi_scale_factor
-            render_height = qpixmap.height() / hidpi_scale_factor
-            render_x = (self.rect().width() - render_width) / 2
+            self.page_render_width = qpixmap.width() / hidpi_scale_factor
+            self.page_render_height = qpixmap.height() / hidpi_scale_factor
+            self.page_render_x = (self.rect().width() - self.page_render_width) / 2
 
             # Add padding between pages.
             if (index - self.start_page_index) > 0:
                 painter.translate(0, self.page_padding)
 
             # Draw page image.
-            if self.read_mode == "fit_to_customize" and render_width >= self.rect().width():
+            if self.read_mode == "fit_to_customize" and self.page_render_width >= self.rect().width():
                 # limit the visiable area size
-                render_x = max(min(render_x + self.horizontal_offset, 0), self.rect().width() - render_width)
+                self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
 
-            rect = QRect(int(render_x), int(render_y), int(render_width), int(render_height))
+            rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
 
             # draw rectangle with current pen and brush color
             painter.drawRect(rect)
@@ -422,7 +422,7 @@ class PdfViewerWidget(QWidget):
                 indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
                 self.draw_synctex_indicator(painter, 15, indicator_pos_y)
 
-            render_y += render_height
+            self.page_render_y += self.page_render_height
 
         # Clean unused pixmap cache that avoid use too much memory.
         self.clean_unused_page_cache_pixmap()
@@ -466,12 +466,14 @@ class PdfViewerWidget(QWidget):
         show_progress_on_page, = get_emacs_vars(["eaf-pdf-show-progress-on-page"])
         if show_progress_on_page:
             progress_percent = int(current_page * 100 / self.page_total_number)
-            painter.drawText(QRect(self.rect().x(),
-                                   self.rect().y(),
-                                   self.rect().width() - self.page_annotate_padding_right,
-                                   self.rect().height() - self.page_annotate_padding_bottom),
-                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
-                             "{0}% ({1}/{2})".format(progress_percent, current_page, self.page_total_number))
+            progress_rect = QRect(int(self.page_render_x + self.page_annotate_padding_x),
+                                  int(self.rect().y() + self.page_annotate_padding_y),
+                                  int(self.page_render_width - self.page_annotate_padding_x * 2),
+                                  int(self.rect().height() - self.page_annotate_padding_y * 2))
+            
+            painter.drawText(progress_rect,
+                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom, 
+                             "{}% ( {}/{} )".format(progress_percent, current_page, self.page_total_number))
 
     def build_context_wrap(f):
         def wrapper(*args):
