@@ -20,7 +20,7 @@
 
 
 # utils function
-def inverted_color(color, inverted=False):
+def convert_hex_to_qcolor(color, inverted=False):
     from PyQt6.QtGui import QColor
 
     color = QColor(color)

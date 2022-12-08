@@ -33,7 +33,7 @@ import time
 import math
 
 from eaf_pdf_document import PdfDocument
-from eaf_pdf_utils import inverted_color, support_hit_max
+from eaf_pdf_utils import convert_hex_to_qcolor, support_hit_max
 from eaf_pdf_annot import AnnotAction
 
 def set_page_crop_box(page):
@@ -314,7 +314,7 @@ class PdfViewerWidget(QWidget):
             page.cleanup_jump_link_tips()
             self.jump_link_key_cache_dict.clear()
 
-        qpixmap = page.get_qpixmap(scale, self.inverted_mode, self.inverted_image_mode)
+        qpixmap = page.get_qpixmap(scale, self.get_render_mode(), self.inverted_image_mode)
 
         self.page_cache_pixmap_dict[index] = qpixmap
         self.document.cache_page(index, page)
@@ -338,7 +338,31 @@ class PdfViewerWidget(QWidget):
         self.update_scale()
 
         QWidget.resizeEvent(self, event)
+        
+    def get_render_mode(self):
+        if self.pdf_dark_mode == "follow":
+            return self.inverted_mode
+        elif self.pdf_dark_mode == "force":
+            return True
+        else:
+            return False
 
+    def get_render_background_color(self):
+        if self.pdf_dark_mode == "follow":
+            return Qt.GlobalColor.black if self.inverted_mode else Qt.GlobalColor.white
+        elif self.pdf_dark_mode == "force":
+            return Qt.GlobalColor.black
+        else:
+            return Qt.GlobalColor.white
+
+    def get_render_foreground_color(self):
+        if self.pdf_dark_mode == "follow":
+            return Qt.GlobalColor.white if self.inverted_mode else Qt.GlobalColor.black
+        elif self.pdf_dark_mode == "force":
+            return Qt.GlobalColor.white
+        else:
+            return Qt.GlobalColor.black
+        
     def paintEvent(self, event):
         # update page base information
         self.update_page_index()
@@ -350,15 +374,9 @@ class PdfViewerWidget(QWidget):
         painter.save()
 
         # Draw background.
-        # change color of background if inverted mode is enable
-        if self.pdf_dark_mode == "follow" or self.pdf_dark_mode == "force":
-            color = QColor(self.theme_background_color)
-            painter.setBrush(color)
-            painter.setPen(color)
-        else:
-            color = QColor(20, 20, 20, 255) if self.inverted_mode else Qt.GlobalColor.white
-            painter.setBrush(color)
-            painter.setPen(color)
+        color = self.get_render_background_color()
+        painter.setBrush(color)
+        painter.setPen(color)
 
         if self.scroll_offset > self.max_scroll_offset():
             self.update_vertical_offset(self.max_scroll_offset())
@@ -413,10 +431,8 @@ class PdfViewerWidget(QWidget):
         # Render current page.
         painter.setFont(self.font)
 
-        if self.rect().width() <= render_width and not self.inverted_mode:
-            painter.setPen(inverted_color((self.theme_foreground_color), True))
-        else:
-            painter.setPen(inverted_color((self.theme_foreground_color)))
+        # Set pen color.
+        painter.setPen(self.get_render_foreground_color())
 
         # Update page progress
         self.update_page_progress(painter)
