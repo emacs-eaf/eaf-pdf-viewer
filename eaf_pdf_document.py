@@ -21,6 +21,7 @@
 from core.utils import (message_to_emacs, get_emacs_vars)
 import fitz
 import time
+import functools
 
 from eaf_pdf_page import PdfPage
 
@@ -90,7 +91,12 @@ class PdfDocument(fitz.Document):
         self._page_cache_dict = {}
         try:
             self.document = fitz.open(url)
+
+            if self.watch_callback is not None:
+                self.watch_callback(url)
+            self.file_changed_timer.stop()
         except Exception:
+            self.file_changed_timer.start()
             message_to_emacs("Failed to reload PDF file!")
 
 
@@ -119,24 +125,18 @@ class PdfDocument(fitz.Document):
         Use the QFileSystemWatcher watch file changed. If the watch file have been remove or rename,
         this watch will auto remove.
         '''
+        from PyQt6.QtCore import QTimer
         if path in self.file_changed_wacher.files():
-            try:
-                # Some program will generate `middle` file, but file already changed, fitz try to
-                # open the `middle` file caused error.
-                time.sleep(0.5)
-                self.reload_document(path)
-            except:
-                return
+            self.file_changed_timer = QTimer()
+            self.file_changed_timer.setInterval(500)
+            self.file_changed_timer.setSingleShot(True)
+            reload_callback = functools.partial(self.reload_document, path)
+            self.file_changed_timer.timeout.connect(reload_callback)
+            self.file_changed_timer.start()
 
             notify, = get_emacs_vars(["eaf-pdf-notify-file-changed"])
             if notify:
                 message_to_emacs("Detected that {} has been changed. Refreshing buffer...".format(path))
-
-            try:
-                self.watch_callback(path)
-            except Exception:
-                print("Failed to watch callback")
-
 
     def toggle_trim_margin(self):
         self._is_trim_margin = not self._is_trim_margin
