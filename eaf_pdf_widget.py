@@ -167,7 +167,6 @@ class PdfViewerWidget(QWidget):
 
         # Fill app background color
         pal = self.palette()
-        # pal.setColor(QPalette.Background, self.background_color)
         pal.setColor(QPalette.ColorRole.Window, self.background_color)
         self.setAutoFillBackground(True)
         self.setPalette(pal)
@@ -314,7 +313,7 @@ class PdfViewerWidget(QWidget):
             page.cleanup_jump_link_tips()
             self.jump_link_key_cache_dict.clear()
 
-        qpixmap = page.get_qpixmap(scale, self.get_render_mode(), self.inverted_image_mode)
+        qpixmap = page.get_qpixmap(scale, self.get_inverted_mode(), self.inverted_image_mode)
 
         self.page_cache_pixmap_dict[index] = qpixmap
         self.document.cache_page(index, page)
@@ -339,32 +338,49 @@ class PdfViewerWidget(QWidget):
 
         QWidget.resizeEvent(self, event)
         
-    def get_render_mode(self):
+    def get_inverted_mode(self):
         if self.pdf_dark_mode == "follow":
             if self.theme_mode == "dark":
+                # Invert render BLACK font when load dark theme.
                 return not self.inverted_mode
             else:
+                # Invert render WHITE font when load light theme.
                 return self.inverted_mode
         elif self.pdf_dark_mode == "force":
+            # Always render WHITE font.
             return True
         else:
+            # Always render BLACK font.
             return False
 
     def get_render_background_color(self):
         if self.pdf_dark_mode == "follow":
-            return self.theme_foreground_color if self.inverted_mode else self.theme_background_color
+            if self.theme_mode == "dark":
+                # When load dark theme.
+                # Invert render WHITE background, normal render background same as Emacs background.
+                return "#FFFFFF" if self.inverted_mode else self.theme_background_color
+            else:
+                # When load light theme.
+                # Invert render BLACK background, normal render background same as Emacs background.
+                return "#000000" if self.inverted_mode else self.theme_background_color
         elif self.pdf_dark_mode == "force":
-            return self.theme_background_color if self.theme_mode == "dark" else self.theme_foreground_color
+            # When load dark theme, render background same as Emacs background.
+            # When load light theme, render BLACK background.
+            return self.theme_background_color if self.theme_mode == "dark" else "#000000"
         else:
-            return self.theme_foreground_color if self.theme_mode == "dark" else self.theme_background_color
+            # Always render WHITE background.
+            return "#FFFFFF"
 
     def get_render_foreground_color(self):
         if self.pdf_dark_mode == "follow":
+            # Render invert color. 
             return self.theme_background_color if self.inverted_mode else self.theme_foreground_color
         elif self.pdf_dark_mode == "force":
+            # Always render light color.
             return self.theme_foreground_color if self.theme_mode == "dark" else self.theme_background_color
         else:
-            return self.theme_background_color if self.theme_mode == "dark" else self.theme_foreground_color
+            # Alwasy render BLACK font.
+            return "#000000"
         
     def paintEvent(self, event):
         # update page base information
