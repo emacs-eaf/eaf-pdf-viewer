@@ -341,7 +341,10 @@ class PdfViewerWidget(QWidget):
         
     def get_render_mode(self):
         if self.pdf_dark_mode == "follow":
-            return self.inverted_mode
+            if self.theme_mode == "dark":
+                return not self.inverted_mode
+            else:
+                return self.inverted_mode
         elif self.pdf_dark_mode == "force":
             return True
         else:
@@ -349,19 +352,19 @@ class PdfViewerWidget(QWidget):
 
     def get_render_background_color(self):
         if self.pdf_dark_mode == "follow":
-            return Qt.GlobalColor.black if self.inverted_mode else Qt.GlobalColor.white
+            return self.theme_foreground_color if self.inverted_mode else self.theme_background_color
         elif self.pdf_dark_mode == "force":
-            return Qt.GlobalColor.black
+            return self.theme_background_color if self.theme_mode == "dark" else self.theme_foreground_color
         else:
-            return Qt.GlobalColor.white
+            return self.theme_foreground_color if self.theme_mode == "dark" else self.theme_background_color
 
     def get_render_foreground_color(self):
         if self.pdf_dark_mode == "follow":
-            return Qt.GlobalColor.white if self.inverted_mode else Qt.GlobalColor.black
+            return self.theme_background_color if self.inverted_mode else self.theme_foreground_color
         elif self.pdf_dark_mode == "force":
-            return Qt.GlobalColor.white
+            return self.theme_foreground_color if self.theme_mode == "dark" else self.theme_background_color
         else:
-            return Qt.GlobalColor.black
+            return self.theme_background_color if self.theme_mode == "dark" else self.theme_foreground_color
         
     def paintEvent(self, event):
         # update page base information
@@ -374,7 +377,7 @@ class PdfViewerWidget(QWidget):
         painter.save()
 
         # Draw background.
-        color = self.get_render_background_color()
+        color = QColor(self.get_render_background_color())
         painter.setBrush(color)
         painter.setPen(color)
 
@@ -432,7 +435,7 @@ class PdfViewerWidget(QWidget):
         painter.setFont(self.font)
 
         # Set pen color.
-        painter.setPen(self.get_render_foreground_color())
+        painter.setPen(QColor(self.get_render_foreground_color()))
 
         # Update page progress
         self.update_page_progress(painter)
