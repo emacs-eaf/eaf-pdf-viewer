@@ -179,7 +179,7 @@ class PdfViewerWidget(QWidget):
         self.page_annotate_padding_x = 10
         self.page_annotate_padding_y = 10
 
-        self.font = QFont()
+        self.font = QFont()    # type: ignore
         self.font.setPointSize(24)
 
         # Page cache.
@@ -197,6 +197,7 @@ class PdfViewerWidget(QWidget):
         self.last_hover_annot_id = None
 
         self.start_page_index = 0
+        self.start_page_index_before_presentation = 0
         self.last_page_index = 0
 
         self.load_document(url)
@@ -251,6 +252,7 @@ class PdfViewerWidget(QWidget):
             self.scale_before_presentation = self.scale
             self.read_mode_before_presentation = self.read_mode
             self.scroll_offset_before_presentation = self.scroll_offset
+            self.start_page_index_before_presentation = self.start_page_index
             
             self.buffer.enter_fullscreen_request.emit()
             
@@ -262,7 +264,10 @@ class PdfViewerWidget(QWidget):
             self.buffer.exit_fullscreen_request.emit()
             
             self.scale = self.scale_before_presentation
-            self.scroll_offset = self.scroll_offset_before_presentation
+            if self.start_page_index == self.start_page_index_before_presentation:
+                self.scroll_offset = self.scroll_offset_before_presentation
+            else:
+                self.scroll_offset = self.start_page_index * self.page_height * self.scale
             
             if self.read_mode_before_presentation == "fit_to_width":
                 self.zoom_reset()
@@ -482,7 +487,7 @@ class PdfViewerWidget(QWidget):
         painter.restore()
 
         # Render current page.
-        painter.setFont(self.font)
+        painter.setFont(self.font)    # type: ignore
 
         # Set pen color.
         painter.setPen(QColor(self.get_render_foreground_color()))

@@ -20,9 +20,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from PyQt6.QtGui import QColor
+from PyQt6.QtCore import QTimer
 from core.buffer import Buffer
-from core.utils import (eval_in_emacs, message_to_emacs,translate_text,
-                        atomic_edit, get_emacs_vars, get_emacs_config_dir)
+from core.utils import *
 import fitz
 import os
 import threading
@@ -151,18 +151,21 @@ class AppBuffer(Buffer):
                 self.scroll_down()
 
     def save_session_data(self):
-        return "{0}:{1}:{2}:{3}:{4}".format(self.buffer_widget.scroll_offset,
-                                            self.buffer_widget.scale,
-                                            self.buffer_widget.read_mode,
-                                            self.buffer_widget.inverted_mode,
-                                            self.buffer_widget.rotation)
+        return "{0}:{1}:{2}:{3}:{4}:{5}".format(self.buffer_widget.scroll_offset,
+                                                self.buffer_widget.scale,
+                                                self.buffer_widget.read_mode,
+                                                self.buffer_widget.inverted_mode,
+                                                self.buffer_widget.rotation,
+                                                self.buffer_widget.start_page_index)
 
     def restore_session_data(self, session_data):
-        (scroll_offset, scale, read_mode, inverted_mode, rotation) = ("", "", "", "", "0")
+        (scroll_offset, scale, read_mode, inverted_mode, rotation, start_page_index) = ("", "", "", "", "0", "0")
         if session_data.count(":") == 3:
             (scroll_offset, scale, read_mode, inverted_mode) = session_data.split(":")
-        else:
+        elif session_data.count(":") == 4:
             (scroll_offset, scale, read_mode, inverted_mode, rotation) = session_data.split(":")
+        elif session_data.count(":") == 5:
+            (scroll_offset, scale, read_mode, inverted_mode, rotation, start_page_index) = session_data.split(":")
         if self.synctex_info.page_num == None:
             self.buffer_widget.scroll_offset = float(scroll_offset)
             self.buffer_widget.scroll_offset_before_presentation = float(scroll_offset)
@@ -175,6 +178,12 @@ class AppBuffer(Buffer):
         self.buffer_widget.read_mode_before_presentation = read_mode
         self.buffer_widget.rotation = int(rotation)
         self.buffer_widget.inverted_mode = inverted_mode == "True"
+        self.buffer_widget.start_page_index = int(start_page_index)
+        self.buffer_widget.presentation_mode = read_mode == "fit_to_presentation"
+        
+        if read_mode == "fit_to_presentation":
+            QTimer().singleShot(10, self.enable_fullscreen)
+        
         self.buffer_widget.update()
 
     def jump_to_page(self):
