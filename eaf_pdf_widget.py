@@ -412,10 +412,6 @@ class PdfViewerWidget(QWidget):
             return "#000000"
         
     def paintEvent(self, event):
-        # update page base information
-        if self.read_mode != "fit_to_presentation":
-            self.update_page_index()
-
         # Init painter.
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -426,75 +422,77 @@ class PdfViewerWidget(QWidget):
         color = QColor(self.get_render_background_color())
         painter.setBrush(color)
         painter.setPen(color)
+        
+        # Init render variables.
+        (self.page_render_x, self.page_render_y, self.page_render_width, self.page_render_height) = 0, 0, 0, 0
 
         # Translate painter at y coordinate.
-        if self.read_mode != "fit_to_presentation":
+        if self.read_mode == "fit_to_presentation":
+            # Draw page.
+            self.draw_page(painter, self.start_page_index)
+        else:
+            # Update page base information.
+            self.update_page_index()
+            
+            # Adjust vertical offset.
             if self.scroll_offset > self.max_scroll_offset():
                 self.update_vertical_offset(self.max_scroll_offset())    # type: ignore
-                
+            
+            # Translate painter coordinate along with scroll offset.
             translate_y = (self.start_page_index * self.scale * self.page_height) - self.scroll_offset
             painter.translate(0, translate_y)
 
-        # Render pages in visible area.
-        (self.page_render_x, self.page_render_y, self.page_render_width, self.page_render_height) = 0, 0, 0, 0
-        if self.read_mode == "fit_to_presentation":
-            render_range = range(self.start_page_index, self.start_page_index + 1)
-        else:
-            render_range = range(self.start_page_index, self.last_page_index)
-            
-        for index in list(render_range):
-            # Get page image.
-            hidpi_scale_factor = self.devicePixelRatioF()
-
-            qpixmap = self.get_page_pixmap(index, self.scale * hidpi_scale_factor, self.rotation)
-
-            if self.is_select_mode:
-                qpixmap = self.mark_select_char_area(index, qpixmap)
-
-            # Init render rect.
-            self.page_render_width = qpixmap.width() / hidpi_scale_factor
-            self.page_render_height = qpixmap.height() / hidpi_scale_factor
-            self.page_render_x = (self.rect().width() - self.page_render_width) / 2
-            
-            if self.read_mode == "fit_to_presentation":
-                self.page_render_y = (self.rect().height() - self.page_render_height) / 2
+            for index in list(range(self.start_page_index, self.last_page_index)):
+                # Add padding between pages.
+                if (index - self.start_page_index) > 0:
+                    painter.translate(0, self.page_padding)
                 
-            # Add padding between pages.
-            if (index - self.start_page_index) > 0:
-                painter.translate(0, self.page_padding)
+                # Draw page.
+                self.draw_page(painter, index)
 
-            # Draw page image.
-            if self.read_mode == "fit_to_customize" and self.page_render_width >= self.rect().width():
-                # limit the visiable area size
-                self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
-
-            rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
-
-            # draw rectangle with current pen and brush color
-            painter.drawRect(rect)
-
-            painter.drawPixmap(rect, qpixmap)
-
-            # Draw an indicator for synctex position
-            if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y != None:
-                indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
-                self.draw_synctex_indicator(painter, 15, indicator_pos_y)
-
-            if self.read_mode != "fit_to_presentation":
+                # Draw an indicator for synctex position
+                if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y != None:
+                    indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
+                    self.draw_synctex_indicator(painter, 15, indicator_pos_y)
+    
                 self.page_render_y += self.page_render_height
 
         # Clean unused pixmap cache that avoid use too much memory.
         self.clean_unused_page_cache_pixmap()
+        
+        # Restore painter.
         painter.restore()
 
-        # Render current page.
+        # Render progress information.
         painter.setFont(self.font)    # type: ignore
-
-        # Set pen color.
         painter.setPen(QColor(self.get_render_foreground_color()))
-
-        # Update page progress
         self.update_page_progress(painter)
+        
+    def draw_page(self, painter, index):
+        # Get page image.
+        hidpi_scale_factor = self.devicePixelRatioF()
+
+        qpixmap = self.get_page_pixmap(index, self.scale * hidpi_scale_factor, self.rotation)
+
+        if self.is_select_mode:
+            qpixmap = self.mark_select_char_area(index, qpixmap)
+
+        # Init render rect.
+        self.page_render_width = qpixmap.width() / hidpi_scale_factor
+        self.page_render_height = qpixmap.height() / hidpi_scale_factor
+        self.page_render_x = (self.rect().width() - self.page_render_width) / 2
+        
+        # Adjust render coordinate with current read mode.
+        if self.read_mode == "fit_to_presentation":
+            self.page_render_y = (self.rect().height() - self.page_render_height) / 2
+        elif self.read_mode == "fit_to_customize" and self.page_render_width >= self.rect().width():
+            # limit the visiable area size
+            self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
+
+        # Draw page.
+        rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
+        painter.drawRect(rect)
+        painter.drawPixmap(rect, qpixmap)
 
     def draw_synctex_indicator(self, painter, x, y):
         from PyQt6.QtGui import QPolygon
