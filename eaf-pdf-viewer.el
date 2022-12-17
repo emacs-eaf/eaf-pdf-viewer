@@ -201,6 +201,7 @@ Non-nil means don't invert images."
     ("M-e" . "edit_annot_text")
     ("M-r" . "move_annot_text")
     ("M-p" . "toggle_presentation_mode")
+    ("<escape>" . "quit_presentation_mode")
     ("J" . "select_left_tab")
     ("K" . "select_right_tab")
     ("o" . "eaf-pdf-outline")

@@ -244,42 +244,50 @@ class PdfViewerWidget(QWidget):
             return False
 
     @interactive
+    def enter_presentation_mode(self):
+        self.presentation_mode = True
+        
+        self.scale_before_presentation = self.scale
+        self.read_mode_before_presentation = self.read_mode
+        self.scroll_offset_before_presentation = self.scroll_offset
+        self.start_page_index_before_presentation = self.start_page_index
+        
+        self.buffer.enter_fullscreen_request.emit()
+        
+        # Make current page fill the view.
+        self.zoom_reset("fit_to_presentation")
+        
+    @interactive
+    def quit_presentation_mode(self):
+        self.presentation_mode = False
+        
+        self.buffer.exit_fullscreen_request.emit()
+        
+        self.scale = self.scale_before_presentation
+        if self.start_page_index == self.start_page_index_before_presentation:
+            self.scroll_offset = self.scroll_offset_before_presentation
+        else:
+            self.scroll_offset = self.start_page_index * self.page_height * self.scale
+        
+        if self.read_mode_before_presentation == "fit_to_width":
+            self.zoom_reset()
+        else:
+            self.read_mode = "fit_to_customize"
+            text_width = self.document.get_page_width()
+            fit_to_width = self.rect().width() / text_width
+            self.scale_to(min(max(10, fit_to_width), self.scale))
+            self.update()
+        
+    @interactive
     def toggle_presentation_mode(self):
         '''
         Toggle presentation mode.
         '''
         self.presentation_mode = not self.presentation_mode
         if self.presentation_mode:
-            self.scale_before_presentation = self.scale
-            self.read_mode_before_presentation = self.read_mode
-            self.scroll_offset_before_presentation = self.scroll_offset
-            self.start_page_index_before_presentation = self.start_page_index
-            
-            self.buffer.enter_fullscreen_request.emit()
-            
-            # Make current page fill the view.
-            self.zoom_reset("fit_to_presentation")
-
-            message_to_emacs("Presentation Mode.")
+            self.enter_presentation_mode()
         else:
-            self.buffer.exit_fullscreen_request.emit()
-            
-            self.scale = self.scale_before_presentation
-            if self.start_page_index == self.start_page_index_before_presentation:
-                self.scroll_offset = self.scroll_offset_before_presentation
-            else:
-                self.scroll_offset = self.start_page_index * self.page_height * self.scale
-            
-            if self.read_mode_before_presentation == "fit_to_width":
-                self.zoom_reset()
-            else:
-                self.read_mode = "fit_to_customize"
-                text_width = self.document.get_page_width()
-                fit_to_width = self.rect().width() / text_width
-                self.scale_to(min(max(10, fit_to_width), self.scale))
-                self.update()
-            
-            message_to_emacs("Continuous Mode.")
+            self.quit_presentation_mode()
 
     @property
     def scroll_step_vertical(self):
