@@ -23,11 +23,12 @@ from PyQt6.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QCursor
 from PyQt6.QtGui import QPainter, QPalette
 from PyQt6.QtWidgets import QWidget
-from core.utils import (interactive, eval_in_emacs, message_to_emacs,
+from core.utils import (interactive, eval_in_emacs, message_to_emacs,    # type: ignore
                         atomic_edit, get_emacs_var, get_emacs_vars,
                         get_emacs_func_result, get_emacs_config_dir,
                         get_emacs_theme_mode, get_emacs_theme_foreground,
-                        get_emacs_theme_background, get_app_dark_mode)
+                        get_emacs_theme_background, get_app_dark_mode,
+                        open_url_in_new_tab)
 import fitz
 import time
 import math
@@ -134,7 +135,7 @@ class PdfViewerWidget(QWidget):
         self.popup_text_annot_timer = QTimer()
         self.popup_text_annot_timer.setInterval(300)
         self.popup_text_annot_timer.setSingleShot(True)
-        self.popup_text_annot_timer.timeout.connect(self.handle_popup_text_annot_mode)
+        self.popup_text_annot_timer.timeout.connect(self.handle_popup_text_annot_mode)    # type: ignore
         self.is_popup_text_annot_mode = False
         self.is_popup_text_annot_handler_waiting = False
         self.popup_text_annot_pos = (None, None)
@@ -142,7 +143,7 @@ class PdfViewerWidget(QWidget):
         self.inline_text_annot_timer = QTimer()
         self.inline_text_annot_timer.setInterval(300)
         self.inline_text_annot_timer.setSingleShot(True)
-        self.inline_text_annot_timer.timeout.connect(self.handle_inline_text_annot_mode)
+        self.inline_text_annot_timer.timeout.connect(self.handle_inline_text_annot_mode)    # type: ignore
         self.is_inline_text_annot_mode = False
         self.is_inline_text_annot_handler_waiting = False
         self.inline_text_annot_pos = (None, None)
@@ -150,7 +151,7 @@ class PdfViewerWidget(QWidget):
         self.move_text_annot_timer = QTimer()
         self.move_text_annot_timer.setInterval(300)
         self.move_text_annot_timer.setSingleShot(True)
-        self.move_text_annot_timer.timeout.connect(self.handle_move_text_annot_mode)
+        self.move_text_annot_timer.timeout.connect(self.handle_move_text_annot_mode)    # type: ignore
         self.is_move_text_annot_mode = False
         self.is_move_text_annot_handler_waiting = False
         self.move_text_annot_pos = (None, None)
@@ -210,7 +211,7 @@ class PdfViewerWidget(QWidget):
 
         # synctex init page
         if self.synctex_info.page_num != None:
-            self.jump_to_page(self.synctex_info.page_num)
+            self.jump_to_page(self.synctex_info.page_num)    # type: ignore
 
     def load_document(self, url):
         if self.page_cache_pixmap_dict:
@@ -219,7 +220,7 @@ class PdfViewerWidget(QWidget):
 
         # Load document first.
         try:
-            self.document = PdfDocument(fitz.open(url))
+            self.document = PdfDocument(fitz.open(url))    # type: ignore
         except Exception:
             message_to_emacs("Failed to load PDF file!")
             return
@@ -429,7 +430,7 @@ class PdfViewerWidget(QWidget):
         # Translate painter at y coordinate.
         if self.read_mode != "fit_to_presentation":
             if self.scroll_offset > self.max_scroll_offset():
-                self.update_vertical_offset(self.max_scroll_offset())
+                self.update_vertical_offset(self.max_scroll_offset())    # type: ignore
                 
             translate_y = (self.start_page_index * self.scale * self.page_height) - self.scroll_offset
             painter.translate(0, translate_y)
@@ -533,7 +534,7 @@ class PdfViewerWidget(QWidget):
                              Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom, 
                              "{}% ( {}/{} )".format(progress_percent, current_page, self.page_total_number))
 
-    def build_context_wrap(f):
+    def build_context_wrap(f):    # type: ignore
         def wrapper(*args):
             # Get self instance object.
             self_obj = args[0]
@@ -542,7 +543,7 @@ class PdfViewerWidget(QWidget):
             page_before_action = self_obj.start_page_index
 
             # Do action.
-            ret = f(*args)
+            ret = f(*args)    # type: ignore
 
             # Record page after action.
             page_after_action = self_obj.start_page_index
@@ -556,7 +557,7 @@ class PdfViewerWidget(QWidget):
 
         return wrapper
 
-    @build_context_wrap
+    @build_context_wrap    # type: ignore
     def wheelEvent(self, event):
         if not event.accept():
             if event.angleDelta().y():
@@ -574,12 +575,12 @@ class PdfViewerWidget(QWidget):
                     numSteps = numSteps / 120
                 new_pos = self.scroll_offset - numSteps * self.scroll_step_vertical
                 max_pos = self.max_scroll_offset()
-                self.update_vertical_offset(max(min(new_pos, max_pos), 0))
+                self.update_vertical_offset(max(min(new_pos, max_pos), 0))    # type: ignore
 
             if event.angleDelta().x():
                 new_pos = (self.horizontal_offset + event.angleDelta().x() / 120 * self.scroll_step_horizontal)
                 max_pos = (self.page_width * self.scale - self.rect().width())
-                self.update_horizontal_offset(max(min(new_pos , max_pos), -max_pos))
+                self.update_horizontal_offset(max(min(new_pos , max_pos), -max_pos))    # type: ignore
 
     def update_page_index(self):
         self.start_page_index = min(int(self.scroll_offset * 1.0 / self.scale / self.page_height),
@@ -591,7 +592,7 @@ class PdfViewerWidget(QWidget):
         current_page_index = self.start_page_index
         self.page_width = rect.width
         self.page_height = rect.height
-        self.jump_to_page(current_page_index)
+        self.jump_to_page(current_page_index)    # type: ignore
 
     def build_context_cache(self):
         # Just build context cache when action duration longer than delay
@@ -656,14 +657,14 @@ class PdfViewerWidget(QWidget):
         if self.read_mode == "fit_to_presentation":
             self.next_page()
         else:
-            self.update_vertical_offset(min(self.scroll_offset + self.scroll_step_vertical, self.max_scroll_offset()))
+            self.update_vertical_offset(min(self.scroll_offset + self.scroll_step_vertical, self.max_scroll_offset()))    # type: ignore
 
     @interactive
     def scroll_down(self):
         if self.read_mode == "fit_to_presentation":
             self.prev_page()
         else:
-            self.update_vertical_offset(max(self.scroll_offset - self.scroll_step_vertical, 0))
+            self.update_vertical_offset(max(self.scroll_offset - self.scroll_step_vertical, 0))    # type: ignore
 
     @interactive
     def scroll_up_page(self):
@@ -671,7 +672,7 @@ class PdfViewerWidget(QWidget):
             self.next_page()
         else:
             # Adjust scroll step to make users continue reading fluently.
-            self.update_vertical_offset(min(self.scroll_offset + self.rect().height() - self.scroll_step_vertical, self.max_scroll_offset()))
+            self.update_vertical_offset(min(self.scroll_offset + self.rect().height() - self.scroll_step_vertical, self.max_scroll_offset()))    # type: ignore
 
     @interactive
     def scroll_down_page(self):
@@ -679,27 +680,27 @@ class PdfViewerWidget(QWidget):
             self.prev_page()
         else:
             # Adjust scroll step to make users continue reading fluently.
-            self.update_vertical_offset(max(self.scroll_offset - self.rect().height() + self.scroll_step_vertical, 0))
+            self.update_vertical_offset(max(self.scroll_offset - self.rect().height() + self.scroll_step_vertical, 0))    # type: ignore
 
     @interactive
     def scroll_right(self):
-        self.update_horizontal_offset(max(self.horizontal_offset - self.scroll_step_horizontal, (self.rect().width() - self.page_width * self.scale) / 2))
+        self.update_horizontal_offset(max(self.horizontal_offset - self.scroll_step_horizontal, (self.rect().width() - self.page_width * self.scale) / 2))    # type: ignore
 
     @interactive
     def scroll_left(self):
-        self.update_horizontal_offset(min(self.horizontal_offset + self.scroll_step_horizontal, (self.page_width * self.scale - self.rect().width()) / 2))
+        self.update_horizontal_offset(min(self.horizontal_offset + self.scroll_step_horizontal, (self.page_width * self.scale - self.rect().width()) / 2))    # type: ignore
 
     @interactive
     def scroll_center_horizontal(self):
-        self.update_horizontal_offset(0)
+        self.update_horizontal_offset(0)    # type: ignore
 
     @interactive
     def scroll_to_begin(self):
-        self.update_vertical_offset(0)
+        self.update_vertical_offset(0)    # type: ignore
 
     @interactive
     def scroll_to_end(self):
-        self.update_vertical_offset(self.max_scroll_offset())
+        self.update_vertical_offset(self.max_scroll_offset())    # type: ignore
 
     @interactive
     def zoom_in(self):
@@ -745,7 +746,7 @@ class PdfViewerWidget(QWidget):
         self.document.toggle_trim_margin()
         self.page_cache_pixmap_dict.clear()
         self.update()
-        self.jump_to_page(current_page_index)
+        self.jump_to_page(current_page_index)    # type: ignore
 
     @interactive
     def toggle_inverted_mode(self):
@@ -785,7 +786,7 @@ class PdfViewerWidget(QWidget):
             self.page_cache_pixmap_dict.clear()
             self.update_scale()
             self.update()
-            self.jump_to_page(current_page_index)
+            self.jump_to_page(current_page_index)    # type: ignore
         else:
             message_to_emacs("Only support PDF!")
 
@@ -846,7 +847,7 @@ class PdfViewerWidget(QWidget):
             annot_action = self.annot_action_sequence[self.annot_action_index]
             self.annot_action_index = self.annot_action_index - 1
             if annot_action:
-                self.jump_to_page(annot_action.page_index + 1)
+                self.jump_to_page(annot_action.page_index + 1)    # type: ignore
                 if annot_action.action_type == "Add":
                     self.delete_annot_of_action(annot_action)
                 elif annot_action.action_type == "Delete":
@@ -862,7 +863,7 @@ class PdfViewerWidget(QWidget):
         else:
             self.annot_action_index = self.annot_action_index + 1
             annot_action = self.annot_action_sequence[self.annot_action_index]
-            self.jump_to_page(annot_action.page_index + 1)
+            self.jump_to_page(annot_action.page_index + 1)    # type: ignore
 
             if annot_action.action_type == "Add":
                 self.add_annot_of_action(annot_action)
@@ -888,13 +889,12 @@ class PdfViewerWidget(QWidget):
             self.cleanup_links()
 
             self.save_current_pos()
-            self.jump_to_page(link["page"] + 1)
+            self.jump_to_page(link["page"] + 1)    # type: ignore
 
             message_to_emacs("Landed on Page " + str(link["page"] + 1))
         elif "uri" in link:
             self.cleanup_links()
 
-            from core.utils import open_url_in_new_tab
             open_url_in_new_tab(link["uri"])
             message_to_emacs("Open " + link["uri"])
 
@@ -929,19 +929,19 @@ class PdfViewerWidget(QWidget):
         else:
             self.page_cache_pixmap_dict.clear()
             self.update()
-            self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])
+            self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])    # type: ignore
             message_to_emacs("Found " + str(len(self.search_text_offset_list)) + " results with \"" + text + "\".")
 
     def jump_next_match(self):
         if len(self.search_text_offset_list) > 0:
             self.search_text_index = (self.search_text_index + 1) % len(self.search_text_offset_list)
-            self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])
+            self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])    # type: ignore
             message_to_emacs("Match " + str(self.search_text_index + 1) + "/" + str(len(self.search_text_offset_list)))
 
     def jump_last_match(self):
         if len(self.search_text_offset_list) > 0:
             self.search_text_index = (self.search_text_index - 1) % len(self.search_text_offset_list)
-            self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])
+            self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])    # type: ignore
             message_to_emacs("Match " + str(self.search_text_index + 1) + "/" + str(len(self.search_text_offset_list)))
 
     def cleanup_search(self):
@@ -955,15 +955,15 @@ class PdfViewerWidget(QWidget):
         page_dict = {}
         if self.start_char_rect_index and self.last_char_rect_index:
             # start and last page
-            sp_index = min(self.start_char_page_index, self.last_char_page_index)
-            lp_index = max(self.start_char_page_index, self.last_char_page_index)
-            for page_index in range(sp_index, lp_index + 1):
+            sp_index = min(self.start_char_page_index, self.last_char_page_index)    # type: ignore
+            lp_index = max(self.start_char_page_index, self.last_char_page_index)    # type: ignore
+            for page_index in range(sp_index, lp_index + 1):    # type: ignore
                 page_char_list = self.document[page_index].get_page_char_rect_list()
 
                 if page_char_list:
                 # handle forward select and backward select on multi page.
                 # backward select on multi page.
-                    if self.start_char_page_index > self.last_char_page_index:
+                    if self.start_char_page_index > self.last_char_page_index:    # type: ignore
                         sc = self.last_char_rect_index if page_index == sp_index else 0
                         lc = self.start_char_rect_index if page_index == lp_index else len(page_char_list)
                     else:
@@ -1016,7 +1016,7 @@ class PdfViewerWidget(QWidget):
                 new_annot.update()
             elif annot_type == "squiggly":
                 new_annot = page.add_squiggly_annot(quads)
-            elif annot_type == "text":
+            else:                    # annot_type == "text"
                 point = quads[-1].lr # lower right point
                 new_annot = page.add_text_annot(point, text, icon="Note")
 
@@ -1043,9 +1043,9 @@ class PdfViewerWidget(QWidget):
         self.record_new_annot_action(annot_action)
 
         self.save_annot()
-        self.disable_popup_text_annot_mode()
+        self.disable_popup_text_annot_mode()    # type: ignore
 
-    def compute_annot_rect_inline_text(self, point, fontsize, text=None):
+    def compute_annot_rect_inline_text(self, point, fontsize, text):
         text_lines = text.splitlines()
         longest_line = max(text_lines, key=len)
         annot_rect = fitz.Rect(point,
@@ -1076,7 +1076,7 @@ class PdfViewerWidget(QWidget):
         self.record_new_annot_action(annot_action)
 
         self.save_annot()
-        self.disable_inline_text_annot_mode()
+        self.disable_inline_text_annot_mode()    # type: ignore
 
     def cleanup_select(self):
         self.is_select_mode = False
@@ -1181,7 +1181,7 @@ class PdfViewerWidget(QWidget):
         return None
 
     def check_annot(self):
-        ex, ey, page_index = self.get_cursor_absolute_position()
+        ex, ey, page_index = self.get_cursor_absolute_position()    # type: ignore
         page = self.document[page_index]
 
         annot, ok = page.can_update_annot(ex, ey)
@@ -1216,36 +1216,36 @@ class PdfViewerWidget(QWidget):
                 self.moved_annot_page = (annot, annot.parent)
                 if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
                    annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
-                    self.enable_move_text_annot_mode()
+                    self.enable_move_text_annot_mode()    # type: ignore
 
     def edit_annot_text(self, annot_text):
         annot, page = self.edited_annot_page
-        if annot.parent:
-            if annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
-                annot.set_info(content=annot_text)
-                point = annot.rect.top_left
+        if annot.parent:    # type: ignore
+            if annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:    # type: ignore
+                annot.set_info(content=annot_text)    # type: ignore
+                point = annot.rect.top_left    # type: ignore
                 fontsize = self.inline_text_annot_fontsize
                 rect = self.compute_annot_rect_inline_text(point, fontsize, annot_text)
-                annot.set_rect(rect)
+                annot.set_rect(rect)    # type: ignore
                 message_to_emacs("Updated inline text annot!")
             else:
-                annot.set_info(content=annot_text)
+                annot.set_info(content=annot_text)    # type: ignore
                 message_to_emacs("Updated annot!")
-            annot.update()
+            annot.update()    # type: ignore
             self.save_annot()
         self.edited_annot_page = (None, None)
 
     def move_annot_text(self):
         annot, page = self.moved_annot_page
-        if annot.parent:
-            if annot.type[0] == fitz.PDF_ANNOT_TEXT or \
-               annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:
+        if annot.parent:    # type: ignore
+            if annot.type[0] == fitz.PDF_ANNOT_TEXT or annot.type[0] == fitz.PDF_ANNOT_FREE_TEXT:     # type: ignore
                 (point, page_index) = self.move_text_annot_pos
-                rect = annot.rect
-                new_rect = fitz.Rect(point, point.x + rect.width, point.y + rect.height)
-                annot.set_rect(new_rect)
-                annot.update()
+                rect = annot.rect    # type: ignore
+                new_rect = fitz.Rect(point, point.x + rect.width, point.y + rect.height)    # type: ignore
+                annot.set_rect(new_rect)    # type: ignore
+                annot.update()    # type: ignore
                 self.save_annot()
+                  
         self.moved_annot_page = (None, None)
         self.disable_move_text_annot_mode()
 

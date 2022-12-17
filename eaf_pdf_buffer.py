@@ -21,8 +21,8 @@
 
 from PyQt6.QtGui import QColor
 from PyQt6.QtCore import QTimer
-from core.buffer import Buffer
-from core.utils import *
+from core.buffer import Buffer    # type: ignore
+from core.utils import (eval_in_emacs, message_to_emacs,translate_text, atomic_edit, get_emacs_vars, get_emacs_config_dir, touch)    # type: ignore
 import fitz
 import os
 import threading
@@ -89,7 +89,6 @@ class AppBuffer(Buffer):
         if self.store_history:
             # Make sure file created.
             history_file = os.path.join(get_emacs_config_dir(), "pdf", "history", "log.txt")
-            from core.utils import touch
 
             touch(history_file)
 
