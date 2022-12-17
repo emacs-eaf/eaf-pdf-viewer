@@ -157,6 +157,7 @@ class PdfViewerWidget(QWidget):
 
         # Init scroll attributes.
         self.scroll_offset = 0
+        self.scroll_offset_before_presentation = 0
         self.scroll_ratio = 0.05
         self.scroll_wheel_lasttime = time.time()
         if self.pdf_scroll_ratio != 0.05:
@@ -249,18 +250,19 @@ class PdfViewerWidget(QWidget):
         if self.presentation_mode:
             self.scale_before_presentation = self.scale
             self.read_mode_before_presentation = self.read_mode
+            self.scroll_offset_before_presentation = self.scroll_offset
             
             self.buffer.enter_fullscreen_request.emit()
             
             # Make current page fill the view.
-            self.zoom_reset("fit_to_height")
-            self.jump_to_page(self.start_page_index + 1)
+            self.zoom_reset("fit_to_presentation")
 
             message_to_emacs("Presentation Mode.")
         else:
             self.buffer.exit_fullscreen_request.emit()
             
             self.scale = self.scale_before_presentation
+            self.scroll_offset = self.scroll_offset_before_presentation
             
             if self.read_mode_before_presentation == "fit_to_width":
                 self.zoom_reset()
@@ -405,7 +407,8 @@ class PdfViewerWidget(QWidget):
         
     def paintEvent(self, event):
         # update page base information
-        self.update_page_index()
+        if self.read_mode != "fit_to_presentation":
+            self.update_page_index()
 
         # Init painter.
         painter = QPainter(self)
@@ -418,16 +421,22 @@ class PdfViewerWidget(QWidget):
         painter.setBrush(color)
         painter.setPen(color)
 
-        if self.scroll_offset > self.max_scroll_offset():
-            self.update_vertical_offset(self.max_scroll_offset())
-
         # Translate painter at y coordinate.
-        translate_y = (self.start_page_index * self.scale * self.page_height) - self.scroll_offset
-        painter.translate(0, translate_y)
+        if self.read_mode != "fit_to_presentation":
+            if self.scroll_offset > self.max_scroll_offset():
+                self.update_vertical_offset(self.max_scroll_offset())
+                
+            translate_y = (self.start_page_index * self.scale * self.page_height) - self.scroll_offset
+            painter.translate(0, translate_y)
 
         # Render pages in visible area.
         (self.page_render_x, self.page_render_y, self.page_render_width, self.page_render_height) = 0, 0, 0, 0
-        for index in list(range(self.start_page_index, self.last_page_index)):
+        if self.read_mode == "fit_to_presentation":
+            render_range = range(self.start_page_index, self.start_page_index + 1)
+        else:
+            render_range = range(self.start_page_index, self.last_page_index)
+            
+        for index in list(render_range):
             # Get page image.
             hidpi_scale_factor = self.devicePixelRatioF()
 
@@ -440,7 +449,10 @@ class PdfViewerWidget(QWidget):
             self.page_render_width = qpixmap.width() / hidpi_scale_factor
             self.page_render_height = qpixmap.height() / hidpi_scale_factor
             self.page_render_x = (self.rect().width() - self.page_render_width) / 2
-
+            
+            if self.read_mode == "fit_to_presentation":
+                self.page_render_y = (self.rect().height() - self.page_render_height) / 2
+                
             # Add padding between pages.
             if (index - self.start_page_index) > 0:
                 painter.translate(0, self.page_padding)
@@ -462,7 +474,8 @@ class PdfViewerWidget(QWidget):
                 indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
                 self.draw_synctex_indicator(painter, 15, indicator_pos_y)
 
-            self.page_render_y += self.page_render_height
+            if self.read_mode != "fit_to_presentation":
+                self.page_render_y += self.page_render_height
 
         # Clean unused pixmap cache that avoid use too much memory.
         self.clean_unused_page_cache_pixmap()
@@ -590,20 +603,20 @@ class PdfViewerWidget(QWidget):
     def scale_to_width(self):
         self.scale_to(self.rect().width() * 1.0 / self.page_width)
 
-    def scale_to_height(self):
-        self.scale_to(self.rect().size().height() * 1.0 / self.page_height)
+    def scale_to_presentation(self):
+        self.scale_to(min(self.rect().width() * 1.0 / self.page_width,
+                          self.rect().height() * 1.0 / self.page_height))
 
     def update_scale(self):
         if self.read_mode == "fit_to_width":
             self.scale_to_width()
-        elif self.read_mode == "fit_to_height":
-            self.scale_to_height()
+        elif self.read_mode == "fit_to_presentation":
+            self.scale_to_presentation()
 
     def max_scroll_offset(self):
         max_scroll_offset = self.scale * self.page_height * self.page_total_number - self.rect().height()
         if max_scroll_offset < 0:
             max_scroll_offset = 0
-            # self.scale = self.rect().height() / (self.page_height * self.page_total_number)
         return max_scroll_offset
 
     @interactive
@@ -616,20 +629,52 @@ class PdfViewerWidget(QWidget):
         if self.read_mode == "fit_to_customize":
             self.read_mode = "fit_to_width"
         elif self.read_mode == "fit_to_width":
-            self.read_mode = "fit_to_height"
-        elif self.read_mode == "fit_to_height":
+            self.read_mode = "fit_to_presentation"
+        elif self.read_mode == "fit_to_presentation":
             self.read_mode = "fit_to_width"
 
         self.update_scale()
         self.update()
 
+    def next_page(self):
+        if self.start_page_index < self.page_total_number - 1:
+            self.start_page_index = self.start_page_index + 1
+            self.update()
+    
+    def prev_page(self):
+        if self.start_page_index > 0:
+            self.start_page_index = self.start_page_index - 1
+            self.update()
+        
     @interactive
     def scroll_up(self):
-        self.update_vertical_offset(min(self.scroll_offset + self.scroll_step_vertical, self.max_scroll_offset()))
+        if self.read_mode == "fit_to_presentation":
+            self.next_page()
+        else:
+            self.update_vertical_offset(min(self.scroll_offset + self.scroll_step_vertical, self.max_scroll_offset()))
 
     @interactive
     def scroll_down(self):
-        self.update_vertical_offset(max(self.scroll_offset - self.scroll_step_vertical, 0))
+        if self.read_mode == "fit_to_presentation":
+            self.prev_page()
+        else:
+            self.update_vertical_offset(max(self.scroll_offset - self.scroll_step_vertical, 0))
+
+    @interactive
+    def scroll_up_page(self):
+        if self.presentation_mode:
+            self.next_page()
+        else:
+            # Adjust scroll step to make users continue reading fluently.
+            self.update_vertical_offset(min(self.scroll_offset + self.rect().height() - self.scroll_step_vertical, self.max_scroll_offset()))
+
+    @interactive
+    def scroll_down_page(self):
+        if self.presentation_mode:
+            self.prev_page()
+        else:
+            # Adjust scroll step to make users continue reading fluently.
+            self.update_vertical_offset(max(self.scroll_offset - self.rect().height() + self.scroll_step_vertical, 0))
 
     @interactive
     def scroll_right(self):
@@ -642,22 +687,6 @@ class PdfViewerWidget(QWidget):
     @interactive
     def scroll_center_horizontal(self):
         self.update_horizontal_offset(0)
-
-    @interactive
-    def scroll_up_page(self):
-        if self.presentation_mode:
-            self.scroll_up()
-        else:
-            # Adjust scroll step to make users continue reading fluently.
-            self.update_vertical_offset(min(self.scroll_offset + self.rect().height() - self.scroll_step_vertical, self.max_scroll_offset()))
-
-    @interactive
-    def scroll_down_page(self):
-        if self.presentation_mode:
-            self.scroll_down()
-        else:
-            # Adjust scroll step to make users continue reading fluently.
-            self.update_vertical_offset(max(self.scroll_offset - self.rect().height() + self.scroll_step_vertical, 0))
 
     @interactive
     def scroll_to_begin(self):
