@@ -439,8 +439,8 @@ class PdfViewerWidget(QWidget):
             # Draw page.
             self.draw_page(painter, self.start_page_index)
         else:
-            # Update page base information.
-            self.update_page_index()
+            # Calcucate render range.
+            self.calcuate_render_range()
             
             # Adjust vertical offset.
             if self.scroll_offset > self.max_scroll_offset():
@@ -588,11 +588,14 @@ class PdfViewerWidget(QWidget):
                 max_pos = (self.page_width * self.scale - self.rect().width())
                 self.update_horizontal_offset(max(min(new_pos , max_pos), -max_pos))    # type: ignore
 
-    def update_page_index(self):
-        self.start_page_index = min(int(self.scroll_offset * 1.0 / self.scale / self.page_height),
-                                    self.page_total_number - 1)
-        self.last_page_index = min(int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height) + 1,
-                                   self.page_total_number)
+    def calcuate_render_range(self):
+        self.start_page_index = min(
+            int(self.scroll_offset * 1.0 / self.scale / self.page_height),
+            self.page_total_number - 1)
+        
+        self.last_page_index = min(
+            int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height) + 2, # 2 avoid to miss render page 
+            self.page_total_number)
 
     def update_page_size(self, rect):
         current_page_index = self.start_page_index
