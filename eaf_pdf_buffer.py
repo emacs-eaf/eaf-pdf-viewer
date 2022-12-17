@@ -73,7 +73,7 @@ class AppBuffer(Buffer):
         self.delete_temp_file = arguments == "temp_pdf_file"
 
         self.synctex_info = SynctexInfo(arguments)
-        self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), buffer_id, self.synctex_info))
+        self.add_widget(PdfViewerWidget(url, QColor(buffer_background_color), self, buffer_id, self.synctex_info))
         self.buffer_widget.translate_double_click_word.connect(translate_text)
 
         # Use thread to avoid slow down open speed.

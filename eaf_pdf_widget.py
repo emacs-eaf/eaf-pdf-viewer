@@ -46,12 +46,13 @@ class PdfViewerWidget(QWidget):
 
     translate_double_click_word = pyqtSignal(str)
 
-    def __init__(self, url, background_color, buffer_id, synctex_info):
+    def __init__(self, url, background_color, buffer, buffer_id, synctex_info):
         super(PdfViewerWidget, self).__init__()
 
         self.url = url
         self.config_dir = get_emacs_config_dir()
         self.background_color = background_color
+        self.buffer = buffer
         self.buffer_id = buffer_id
         self.user_name = get_emacs_var("user-full-name")
 
@@ -89,7 +90,9 @@ class PdfViewerWidget(QWidget):
 
         # Init scale and scale mode.
         self.scale = 1.0
+        self.scale_before_presentation = 1.0
         self.read_mode = "fit_to_width"
+        self.read_mode_before_presentation = "fit_to_width"
 
         self.rotation = 0
 
@@ -244,12 +247,30 @@ class PdfViewerWidget(QWidget):
         '''
         self.presentation_mode = not self.presentation_mode
         if self.presentation_mode:
+            self.scale_before_presentation = self.scale
+            self.read_mode_before_presentation = self.read_mode
+            
+            self.buffer.enter_fullscreen_request.emit()
+            
             # Make current page fill the view.
             self.zoom_reset("fit_to_height")
             self.jump_to_page(self.start_page_index + 1)
 
             message_to_emacs("Presentation Mode.")
         else:
+            self.buffer.exit_fullscreen_request.emit()
+            
+            self.scale = self.scale_before_presentation
+            
+            if self.read_mode_before_presentation == "fit_to_width":
+                self.zoom_reset()
+            else:
+                self.read_mode = "fit_to_customize"
+                text_width = self.document.get_page_width()
+                fit_to_width = self.rect().width() / text_width
+                self.scale_to(min(max(10, fit_to_width), self.scale))
+                self.update()
+            
             message_to_emacs("Continuous Mode.")
 
     @property
