@@ -431,25 +431,22 @@ class PdfViewerWidget(QWidget):
         painter.setBrush(color)
         painter.setPen(color)
         
-        # Init render variables.
-        (self.page_render_x, self.page_render_y, self.page_render_width, self.page_render_height) = 0, 0, 0, 0
-
-        # Translate painter at y coordinate.
+        # Draw page.
         if self.read_mode == "fit_to_presentation":
-            # Draw page.
             self.draw_page(painter, self.start_page_index)
         else:
             # Calcucate render range.
-            self.calcuate_render_range()
+            self.start_page_index = min(
+                int(self.scroll_offset * 1.0 / self.scale / self.page_height),
+                self.page_total_number - 1)
             
-            # Adjust vertical offset.
-            if self.scroll_offset > self.max_scroll_offset():
-                self.update_vertical_offset(self.max_scroll_offset())    # type: ignore
+            self.last_page_index = min(
+                int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height) + 2, # 2 avoid to miss render page 
+                self.page_total_number)
             
-            # Translate painter coordinate along with scroll offset.
-            translate_y = (self.start_page_index * self.scale * self.page_height) - self.scroll_offset
-            painter.translate(0, translate_y)
-
+            # Translate coordinate with scroll offset.
+            painter.translate(0, -self.scroll_offset)
+            
             for index in list(range(self.start_page_index, self.last_page_index)):
                 # Add padding between pages.
                 if (index - self.start_page_index) > 0:
@@ -462,8 +459,6 @@ class PdfViewerWidget(QWidget):
                 if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y != None:
                     indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
                     self.draw_synctex_indicator(painter, 15, indicator_pos_y)
-    
-                self.page_render_y += self.page_render_height
 
         # Clean unused pixmap cache that avoid use too much memory.
         self.clean_unused_page_cache_pixmap()
@@ -477,17 +472,16 @@ class PdfViewerWidget(QWidget):
         self.update_page_progress(painter)
         
     def draw_page(self, painter, index):
-        # Get page image.
-        hidpi_scale_factor = self.devicePixelRatioF()
+        # Get page pixmap.
+        qpixmap = self.get_page_pixmap(index, self.scale, self.rotation)
 
-        qpixmap = self.get_page_pixmap(index, self.scale * hidpi_scale_factor, self.rotation)
-
+        # Select char area when is_select_mode is True.
         if self.is_select_mode:
             qpixmap = self.mark_select_char_area(index, qpixmap)
 
         # Init render rect.
-        self.page_render_width = qpixmap.width() / hidpi_scale_factor
-        self.page_render_height = qpixmap.height() / hidpi_scale_factor
+        self.page_render_width = qpixmap.width()
+        self.page_render_height = qpixmap.height()
         self.page_render_x = (self.rect().width() - self.page_render_width) / 2
         
         # Adjust render coordinate with current read mode.
@@ -496,6 +490,9 @@ class PdfViewerWidget(QWidget):
         elif self.read_mode == "fit_to_customize" and self.page_render_width >= self.rect().width():
             # limit the visiable area size
             self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
+            
+        if self.read_mode != "fit_to_presentation":
+            self.page_render_y = index * self.page_render_height
 
         # Draw page.
         rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
@@ -587,15 +584,6 @@ class PdfViewerWidget(QWidget):
                 new_pos = (self.horizontal_offset + event.angleDelta().x() / 120 * self.scroll_step_horizontal)
                 max_pos = (self.page_width * self.scale - self.rect().width())
                 self.update_horizontal_offset(max(min(new_pos , max_pos), -max_pos))    # type: ignore
-
-    def calcuate_render_range(self):
-        self.start_page_index = min(
-            int(self.scroll_offset * 1.0 / self.scale / self.page_height),
-            self.page_total_number - 1)
-        
-        self.last_page_index = min(
-            int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height) + 2, # 2 avoid to miss render page 
-            self.page_total_number)
 
     def update_page_size(self, rect):
         current_page_index = self.start_page_index
