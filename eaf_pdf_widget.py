@@ -472,16 +472,22 @@ class PdfViewerWidget(QWidget):
         self.update_page_progress(painter)
         
     def draw_page(self, painter, index):
+        # Get HiDPI scale factor. 
+        # Note: 
+        # Don't delete hidpi_scale_factor even it value is 1.0, 
+        # PDF page will become blurred if delete this variable.
+        hidpi_scale_factor = self.devicePixelRatioF()
+        
         # Get page pixmap.
-        qpixmap = self.get_page_pixmap(index, self.scale, self.rotation)
+        qpixmap = self.get_page_pixmap(index, self.scale * hidpi_scale_factor, self.rotation)
 
         # Select char area when is_select_mode is True.
         if self.is_select_mode:
             qpixmap = self.mark_select_char_area(index, qpixmap)
 
         # Init render rect.
-        self.page_render_width = qpixmap.width()
-        self.page_render_height = qpixmap.height()
+        self.page_render_width = qpixmap.width() / hidpi_scale_factor
+        self.page_render_height = qpixmap.height() / hidpi_scale_factor
         self.page_render_x = (self.rect().width() - self.page_render_width) / 2
         
         # Adjust render coordinate with current read mode.
