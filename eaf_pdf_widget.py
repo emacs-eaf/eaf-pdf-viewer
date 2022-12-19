@@ -437,21 +437,17 @@ class PdfViewerWidget(QWidget):
         else:
             # Calcucate render range.
             self.start_page_index = min(
-                int(self.scroll_offset * 1.0 / self.scale / self.page_height),
+                int(self.scroll_offset * 1.0 / self.scale / (self.page_height + self.page_padding)),
                 self.page_total_number - 1)
             
             self.last_page_index = min(
-                int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height) + 2, # 2 avoid to miss render page 
+                int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / (self.page_height + self.page_padding) + 2),
                 self.page_total_number)
             
             # Translate coordinate with scroll offset.
-            painter.translate(0, -self.scroll_offset)
+            painter.translate(0,  self.start_page_index * (self.page_height + self.page_padding) * self.scale - self.scroll_offset)
             
             for index in list(range(self.start_page_index, self.last_page_index)):
-                # Add padding between pages.
-                if (index - self.start_page_index) > 0:
-                    painter.translate(0, self.page_padding)
-                
                 # Draw page.
                 self.draw_page(painter, index)
 
@@ -498,7 +494,7 @@ class PdfViewerWidget(QWidget):
             self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
             
         if self.read_mode != "fit_to_presentation":
-            self.page_render_y = index * self.page_render_height
+            self.page_render_y = (index - self.start_page_index) * self.page_render_height + self.page_padding * (index - self.start_page_index)
 
         # Draw page.
         rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
