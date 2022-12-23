@@ -437,17 +437,20 @@ class PdfViewerWidget(QWidget):
         else:
             # Calcucate render range.
             self.start_page_index = min(
-                int(self.scroll_offset * 1.0 / self.scale / (self.page_height + self.page_padding)),
+                int(self.scroll_offset * 1.0 / self.scale / self.page_height),
                 self.page_total_number - 1)
             
             self.last_page_index = min(
-                int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / (self.page_height + self.page_padding) + 2),
+                int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height + 2),
                 self.page_total_number)
             
             # Translate coordinate with scroll offset.
-            painter.translate(0,  self.start_page_index * (self.page_height + self.page_padding) * self.scale - self.scroll_offset)
+            painter.translate(0,  self.start_page_index * self.page_height * self.scale - self.scroll_offset)
             
             for index in list(range(self.start_page_index, self.last_page_index)):
+                if index != self.start_char_page_index:
+                    painter.translate(0, self.page_padding)
+                
                 # Draw page.
                 self.draw_page(painter, index)
 
@@ -494,7 +497,7 @@ class PdfViewerWidget(QWidget):
             self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
             
         if self.read_mode != "fit_to_presentation":
-            self.page_render_y = (index - self.start_page_index) * self.page_render_height + self.page_padding * (index - self.start_page_index)
+            self.page_render_y = (index - self.start_page_index) * self.page_render_height
 
         # Draw page.
         rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
@@ -846,7 +849,7 @@ class PdfViewerWidget(QWidget):
             annot_action = self.annot_action_sequence[self.annot_action_index]
             self.annot_action_index = self.annot_action_index - 1
             if annot_action:
-                self.jump_to_page(annot_action.page_index + 1)    # type: ignore
+                self.jump_to_page(annot_action.page_index)    # type: ignore
                 if annot_action.action_type == "Add":
                     self.delete_annot_of_action(annot_action)
                 elif annot_action.action_type == "Delete":
@@ -862,7 +865,7 @@ class PdfViewerWidget(QWidget):
         else:
             self.annot_action_index = self.annot_action_index + 1
             annot_action = self.annot_action_sequence[self.annot_action_index]
-            self.jump_to_page(annot_action.page_index + 1)    # type: ignore
+            self.jump_to_page(annot_action.page_index)    # type: ignore
 
             if annot_action.action_type == "Add":
                 self.add_annot_of_action(annot_action)
@@ -888,7 +891,7 @@ class PdfViewerWidget(QWidget):
             self.cleanup_links()
 
             self.save_current_pos()
-            self.jump_to_page(link["page"] + 1)    # type: ignore
+            self.jump_to_page(link["page"])    # type: ignore
 
             message_to_emacs("Landed on Page " + str(link["page"] + 1))
         elif "uri" in link:
@@ -1249,7 +1252,7 @@ class PdfViewerWidget(QWidget):
         self.disable_move_text_annot_mode()
 
     def jump_to_page(self, page_num):
-        self.update_vertical_offset(min(max(self.scale * (int(page_num) - 1) * self.page_height, 0), self.max_scroll_offset()))
+        self.update_vertical_offset(min(max(self.scale * int(page_num) * self.page_height, 0), self.max_scroll_offset()))
 
     def jump_to_percent(self, percent):
         self.update_vertical_offset(min(max(self.scale * (self.page_total_number * self.page_height * percent / 100.0), 0), self.max_scroll_offset()))
