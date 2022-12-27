@@ -490,16 +490,28 @@ class PdfViewerWidget(QWidget):
         self.page_render_height = qpixmap.height() / hidpi_scale_factor
         self.page_render_x = (self.rect().width() - self.page_render_width) / 2
         
-        # Adjust render coordinate with current read mode.
-        if self.read_mode == "fit_to_presentation":
-            self.page_render_y = (self.rect().height() - self.page_render_height) / 2
-        elif self.read_mode == "fit_to_customize" and self.page_render_width >= self.rect().width():
+        # Adjust x coordinate coordinate of render page.
+        if self.read_mode == "fit_to_customize" and self.page_render_width >= self.rect().width():
             # limit the visiable area size
             self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
             
+        # Adjust y coordinate of render page.
         if self.read_mode != "fit_to_presentation":
+            # Render page with page index, scale and page height. 
             self.page_render_y = index * self.scale * self.page_height
-
+            
+            # NOTE:
+            # We need translate coordinate inverse if the actual height of the page is lower than the theoretical height returned by mupdf.
+            # otherwise, padding between two pages will become too big.
+            page_render_offset_y = (self.page_height - self.page_render_height / self.scale)
+            
+            if self.scroll_offset < self.max_scroll_offset() - self.page_height: # reach last page
+                painter.translate(0, -page_render_offset_y * self.scale)
+            else:
+                painter.translate(0, page_render_offset_y * self.scale)
+        else:
+            self.page_render_y = (self.rect().height() - self.page_render_height) / 2
+            
         # Draw page.
         rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
         painter.drawRect(rect)
