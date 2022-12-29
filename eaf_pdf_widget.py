@@ -443,7 +443,7 @@ class PdfViewerWidget(QWidget):
             self.last_page_index = min(
                 int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height + 2),
                 self.page_total_number)
-            
+
             # Translate coordinate with scroll offset.
             painter.translate(0,  -self.scroll_offset)
             
@@ -503,12 +503,14 @@ class PdfViewerWidget(QWidget):
             # NOTE:
             # We need translate coordinate inverse if the actual height of the page is lower than the theoretical height returned by mupdf.
             # otherwise, padding between two pages will become too big.
-            page_render_offset_y = (self.page_height - self.page_render_height / self.scale)
-            
-            if self.scroll_offset < self.max_scroll_offset() - self.page_height: # reach last page
-                painter.translate(0, -page_render_offset_y * self.scale)
+            height_deviation = (self.page_height * self.scale - self.page_render_height)
+
+            if self.scroll_offset < self.max_scroll_offset() - self.page_height:
+                # Scroll up deviation between actual height and render height.
+                painter.translate(0, -height_deviation)
             else:
-                painter.translate(0, page_render_offset_y * self.scale)
+                # Scroll down to avoid padding after last page.
+                painter.translate(0, height_deviation)
         else:
             self.page_render_y = (self.rect().height() - self.page_render_height) / 2
             
