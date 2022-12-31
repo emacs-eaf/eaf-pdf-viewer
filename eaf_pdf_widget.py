@@ -448,43 +448,9 @@ class PdfViewerWidget(QWidget):
         
         # Draw page.
         if self.read_mode == "fit_to_presentation":
-            self.draw_page(painter, self.start_page_index)
+            self.draw_presentation_page(painter, self.start_page_index)
         else:
-            # Record start page index before change page.
-            old_start_page_index = self.start_page_index
-
-            # Calcucate render range.
-            self.start_page_index = min(
-                int(self.scroll_offset * 1.0 / self.scale / self.page_height),
-                self.page_total_number - 1)
-            
-            self.last_page_index = min(
-                int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height + 2),
-                self.page_total_number)
-
-            # We need adjust scroll offset if the actual height of the page is lower than the theoretical height returned by mupdf.
-            (_, _, page_render_height) = self.get_page_render_info(self.start_page_index)
-            if self.page_height * self.scale - page_render_height > 0:
-                self.scroll_offset += (self.start_page_index - old_start_page_index) * self.scroll_step_vertical
-
-                # Avoid scroll offset out of round.
-                self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll_offset()))
-
-            # Translate coordinate with scroll offset.
-            painter.translate(0,  -self.scroll_offset)
-            
-            for index in list(range(self.start_page_index, self.last_page_index)):
-                # Draw page padding.
-                if index != 0:
-                    painter.translate(0, self.page_padding)
-                
-                # Draw page.
-                self.draw_page(painter, index)
-
-                # Draw an indicator for synctex position
-                if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y != None:
-                    indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
-                    self.draw_synctex_indicator(painter, 15, indicator_pos_y)
+            self.draw_scroll_pages(painter)
 
         # Clean unused pixmap cache that avoid use too much memory.
         self.clean_unused_page_cache_pixmap()
@@ -497,7 +463,77 @@ class PdfViewerWidget(QWidget):
         painter.setPen(QColor(self.get_render_foreground_color()))
         self.update_page_progress(painter)
         
-    def draw_page(self, painter, index):
+    def draw_presentation_page(self, painter, index):
+        # Get page render information.
+        (qpixmap, self.page_render_width, self.page_render_height) = self.get_page_render_info(index)
+
+        # Select char area when is_select_mode is True.
+        if self.is_select_mode:
+            qpixmap = self.mark_select_char_area(index, qpixmap)
+
+        # Init x and y coordinate.
+        self.page_render_x = (self.rect().width() - self.page_render_width) / 2
+        self.page_render_y = (self.rect().height() - self.page_render_height) / 2
+
+        # Adjust coordinate and size when actual size smaller than visiable area.
+        page_proportion = self.page_render_height * 1.0 / self.page_render_width
+
+        if page_proportion > 1:
+            self.page_render_y = 0
+
+            if self.rect().height() > self.page_render_height:
+                self.page_render_height = self.rect().height()
+                self.page_render_width = self.page_render_height / page_proportion
+        else:
+            self.page_render_x = 0
+
+            if self.rect().width() > self.page_render_width:
+                self.page_render_width = self.rect().width()
+                self.page_render_height = self.page_render_width * page_proportion
+
+        # Draw page.
+        rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
+        painter.drawRect(rect)
+        painter.drawPixmap(rect, qpixmap)
+
+    def draw_scroll_pages(self, painter):
+        # Record start page index before change page.
+        old_start_page_index = self.start_page_index
+
+        # Calcucate render range.
+        self.start_page_index = min(
+            int(self.scroll_offset * 1.0 / self.scale / self.page_height),
+            self.page_total_number - 1)
+
+        self.last_page_index = min(
+            int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height + 2),
+            self.page_total_number)
+
+        # We need adjust scroll offset if the actual height of the page is lower than the theoretical height returned by mupdf.
+        (_, _, page_render_height) = self.get_page_render_info(self.start_page_index)
+        if self.page_height * self.scale - page_render_height > 0:
+            self.scroll_offset += (self.start_page_index - old_start_page_index) * self.scroll_step_vertical
+
+            # Avoid scroll offset out of round.
+            self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll_offset()))
+
+        # Translate coordinate with scroll offset.
+        painter.translate(0,  -self.scroll_offset)
+
+        for index in list(range(self.start_page_index, self.last_page_index)):
+            # Draw page.
+            self.draw_scroll_page(painter, index)
+
+            # Draw an indicator for synctex position
+            if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y != None:
+                indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
+                self.draw_synctex_indicator(painter, 15, indicator_pos_y)
+
+    def draw_scroll_page(self, painter, index):
+        # Draw page padding.
+        if index != 0:
+            painter.translate(0, self.page_padding)
+
         # Get page render information.
         (qpixmap, self.page_render_width, self.page_render_height) = self.get_page_render_info(index)
 
@@ -513,25 +549,21 @@ class PdfViewerWidget(QWidget):
             # limit the visiable area size
             self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
             
-        # Adjust y coordinate of render page.
-        if self.read_mode != "fit_to_presentation":
-            # Render page with page index, scale and page height. 
-            self.page_render_y = index * self.scale * self.page_height
-            
-            # NOTE:
-            # We need translate coordinate inverse if the actual height of the page is lower than the theoretical height returned by mupdf.
-            # otherwise, padding between two pages will become too big.
-            height_deviation = (self.page_height * self.scale - self.page_render_height)
+        # Render page with page index, scale and page height.
+        self.page_render_y = index * self.scale * self.page_height
 
-            if self.scroll_offset < self.max_scroll_offset() - self.page_height:
-                # Scroll up deviation between actual height and render height.
-                painter.translate(0, -height_deviation)
-            else:
-                # Scroll down to avoid padding after last page.
-                painter.translate(0, height_deviation)
+        # NOTE:
+        # We need translate coordinate inverse if the actual height of the page is lower than the theoretical height returned by mupdf.
+        # otherwise, padding between two pages will become too big.
+        height_deviation = (self.page_height * self.scale - self.page_render_height)
+
+        if self.scroll_offset < self.max_scroll_offset() - self.page_height:
+            # Scroll up deviation between actual height and render height.
+            painter.translate(0, -height_deviation)
         else:
-            self.page_render_y = (self.rect().height() - self.page_render_height) / 2
-            
+            # Scroll down to avoid padding after last page.
+            painter.translate(0, height_deviation)
+
         # Draw page.
         rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
         painter.drawRect(rect)
