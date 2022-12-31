@@ -357,6 +357,21 @@ class PdfViewerWidget(QWidget):
 
         return qpixmap
 
+    def get_page_render_info(self, index):
+        # Get HiDPI scale factor.
+        # Note:
+        # Don't delete hidpi_scale_factor even it value is 1.0,
+        # PDF page will become blurred if delete this variable.
+        hidpi_scale_factor = self.devicePixelRatioF()
+
+        # Get page pixmap.
+        qpixmap = self.get_page_pixmap(index, self.scale * hidpi_scale_factor, self.rotation)
+
+        page_render_width = qpixmap.width() / hidpi_scale_factor
+        page_render_height = qpixmap.height() / hidpi_scale_factor
+
+        return (qpixmap, page_render_width, page_render_height)
+
     def clean_unused_page_cache_pixmap(self):
         # We need expand render index bound that avoid clean cache around current index.
         index_list = list(range(self.start_page_index, self.last_page_index))
@@ -435,6 +450,9 @@ class PdfViewerWidget(QWidget):
         if self.read_mode == "fit_to_presentation":
             self.draw_page(painter, self.start_page_index)
         else:
+            # Record start page index before change page.
+            old_start_page_index = self.start_page_index
+
             # Calcucate render range.
             self.start_page_index = min(
                 int(self.scroll_offset * 1.0 / self.scale / self.page_height),
@@ -443,6 +461,14 @@ class PdfViewerWidget(QWidget):
             self.last_page_index = min(
                 int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height + 2),
                 self.page_total_number)
+
+            # We need adjust scroll offset if the actual height of the page is lower than the theoretical height returned by mupdf.
+            (_, _, page_render_height) = self.get_page_render_info(self.start_page_index)
+            if self.page_height * self.scale - page_render_height > 0:
+                self.scroll_offset += (self.start_page_index - old_start_page_index) * self.scroll_step_vertical
+
+                # Avoid scroll offset out of round.
+                self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll_offset()))
 
             # Translate coordinate with scroll offset.
             painter.translate(0,  -self.scroll_offset)
@@ -472,22 +498,14 @@ class PdfViewerWidget(QWidget):
         self.update_page_progress(painter)
         
     def draw_page(self, painter, index):
-        # Get HiDPI scale factor. 
-        # Note: 
-        # Don't delete hidpi_scale_factor even it value is 1.0, 
-        # PDF page will become blurred if delete this variable.
-        hidpi_scale_factor = self.devicePixelRatioF()
-        
-        # Get page pixmap.
-        qpixmap = self.get_page_pixmap(index, self.scale * hidpi_scale_factor, self.rotation)
+        # Get page render information.
+        (qpixmap, self.page_render_width, self.page_render_height) = self.get_page_render_info(index)
 
         # Select char area when is_select_mode is True.
         if self.is_select_mode:
             qpixmap = self.mark_select_char_area(index, qpixmap)
 
-        # Init render rect.
-        self.page_render_width = qpixmap.width() / hidpi_scale_factor
-        self.page_render_height = qpixmap.height() / hidpi_scale_factor
+        # Init x coordinate.
         self.page_render_x = (self.rect().width() - self.page_render_width) / 2
         
         # Adjust x coordinate coordinate of render page.
