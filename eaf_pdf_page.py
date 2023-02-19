@@ -281,18 +281,18 @@ class PdfPage(fitz.Page):
         for image in imagelist:
             try:
                 imagerect = get_page_image_bbox(self.page)(image)
-                if imagerect.isInfinite or imagerect.isEmpty:
+                if imagerect.is_infinite or imagerect.is_empty:
                     continue
                 else:
                     imagebboxlist.append(imagerect)
             except Exception:
-                pass
+                import traceback
+                traceback.print_exc()
 
         for bbox in imagebboxlist:
-            pixmap_invert_irect(pixmap)(bbox * self.page.rotationMatrix * scale)
+            pixmap_invert_irect(pixmap)(bbox * self.page.rotation_matrix * scale)
 
         return pixmap
-
 
     def add_mark_link(self):
         if self.page.first_link:
