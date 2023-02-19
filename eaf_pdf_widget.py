@@ -22,7 +22,7 @@
 from PyQt6.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QCursor
 from PyQt6.QtGui import QPainter, QPalette
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QApplication, QToolTip
 from core.utils import (interactive, eval_in_emacs, message_to_emacs,    # type: ignore
                         atomic_edit, get_emacs_var, get_emacs_vars,
                         get_emacs_func_result, get_emacs_config_dir,
@@ -32,6 +32,7 @@ from core.utils import (interactive, eval_in_emacs, message_to_emacs,    # type:
 import fitz
 import time
 import math
+import webbrowser
 
 from eaf_pdf_document import PdfDocument
 from eaf_pdf_utils import convert_hex_to_qcolor, support_hit_max
@@ -113,6 +114,10 @@ class PdfViewerWidget(QWidget):
         #jump link
         self.is_jump_link = False
         self.jump_link_key_cache_dict = {}
+
+        # hover link
+        self.is_hover_link = False
+        self.last_hover_link = None
 
         #global search text
         self.is_mark_search = False
@@ -246,29 +251,29 @@ class PdfViewerWidget(QWidget):
     @interactive
     def enter_presentation_mode(self):
         self.presentation_mode = True
-        
+
         self.scale_before_presentation = self.scale
         self.read_mode_before_presentation = self.read_mode
         self.scroll_offset_before_presentation = self.scroll_offset
         self.start_page_index_before_presentation = self.start_page_index
-        
+
         self.buffer.enter_fullscreen_request.emit()
-        
+
         # Make current page fill the view.
         self.zoom_reset("fit_to_presentation")
-        
+
     @interactive
     def quit_presentation_mode(self):
         self.presentation_mode = False
-        
+
         self.buffer.exit_fullscreen_request.emit()
-        
+
         self.scale = self.scale_before_presentation
         if self.start_page_index == self.start_page_index_before_presentation:
             self.scroll_offset = self.scroll_offset_before_presentation
         else:
             self.scroll_offset = self.start_page_index * self.page_height * self.scale
-        
+
         if self.read_mode_before_presentation == "fit_to_width":
             self.zoom_reset()
         else:
@@ -277,7 +282,7 @@ class PdfViewerWidget(QWidget):
             fit_to_width = self.rect().width() / text_width
             self.scale_to(min(max(10, fit_to_width), self.scale))
             self.update()
-        
+
     @interactive
     def toggle_presentation_mode(self):
         '''
@@ -389,7 +394,7 @@ class PdfViewerWidget(QWidget):
         self.update_scale()
 
         QWidget.resizeEvent(self, event)
-        
+
     def get_inverted_mode(self):
         if self.pdf_dark_mode == "follow":
             if self.theme_mode == "dark":
@@ -425,7 +430,7 @@ class PdfViewerWidget(QWidget):
 
     def get_render_foreground_color(self):
         if self.pdf_dark_mode == "follow":
-            # Render invert color. 
+            # Render invert color.
             return self.theme_background_color if self.inverted_mode else self.theme_foreground_color
         elif self.pdf_dark_mode == "force":
             # Always render light color.
@@ -433,7 +438,7 @@ class PdfViewerWidget(QWidget):
         else:
             # Alwasy render BLACK font.
             return "#000000"
-        
+
     def paintEvent(self, event):
         # Init painter.
         painter = QPainter(self)
@@ -445,7 +450,7 @@ class PdfViewerWidget(QWidget):
         color = QColor(self.get_render_background_color())
         painter.setBrush(color)
         painter.setPen(color)
-        
+
         # Draw page.
         if self.read_mode == "fit_to_presentation":
             self.draw_presentation_page(painter, self.start_page_index)
@@ -454,7 +459,7 @@ class PdfViewerWidget(QWidget):
 
         # Clean unused pixmap cache that avoid use too much memory.
         self.clean_unused_page_cache_pixmap()
-        
+
         # Restore painter.
         painter.restore()
 
@@ -462,7 +467,7 @@ class PdfViewerWidget(QWidget):
         painter.setFont(self.font)    # type: ignore
         painter.setPen(QColor(self.get_render_foreground_color()))
         self.update_page_progress(painter)
-        
+
     def draw_presentation_page(self, painter, index):
         # Get page render information.
         (qpixmap, self.page_render_width, self.page_render_height) = self.get_page_render_info(index)
@@ -543,12 +548,12 @@ class PdfViewerWidget(QWidget):
 
         # Init x coordinate.
         self.page_render_x = (self.rect().width() - self.page_render_width) / 2
-        
+
         # Adjust x coordinate coordinate of render page.
         if self.read_mode == "fit_to_customize" and self.page_render_width >= self.rect().width():
             # limit the visiable area size
             self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
-            
+
         # Render page with page index, scale and page height.
         self.page_render_y = index * self.scale * self.page_height
 
@@ -602,9 +607,9 @@ class PdfViewerWidget(QWidget):
                                   int(self.rect().y() + self.page_annotate_padding_y),
                                   int(self.page_render_width - self.page_annotate_padding_x * 2),
                                   int(self.rect().height() - self.page_annotate_padding_y * 2))
-            
+
             painter.drawText(progress_rect,
-                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom, 
+                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
                              "{}% ( {}/{} )".format(progress_percent, current_page, self.page_total_number))
 
     def build_context_wrap(f):    # type: ignore
@@ -713,12 +718,12 @@ class PdfViewerWidget(QWidget):
         if self.start_page_index < self.page_total_number - 1:
             self.start_page_index = self.start_page_index + 1
             self.update()
-    
+
     def prev_page(self):
         if self.start_page_index > 0:
             self.start_page_index = self.start_page_index - 1
             self.update()
-        
+
     @interactive
     def scroll_up(self):
         if self.read_mode == "fit_to_presentation":
@@ -951,7 +956,7 @@ class PdfViewerWidget(QWidget):
             self.handle_jump_to_link(self.jump_link_key_cache_dict[key])
         self.cleanup_links()
 
-    def handle_jump_to_link(self, link):
+    def handle_jump_to_link(self, link, external_browser=False):
         if "page" in link:
             self.cleanup_links()
 
@@ -962,8 +967,13 @@ class PdfViewerWidget(QWidget):
         elif "uri" in link:
             self.cleanup_links()
 
-            open_url_in_new_tab(link["uri"])
-            message_to_emacs("Open " + link["uri"])
+            if external_browser:
+                webbrowser.open(link["uri"])
+                message_to_emacs("Open in external browser: " + link["uri"])
+            else:
+                from core.utils import open_url_in_new_tab
+                open_url_in_new_tab(link["uri"])
+                message_to_emacs("Open in EAF: " + link["uri"])
 
     def cleanup_links(self):
         self.is_jump_link = False
@@ -1312,9 +1322,64 @@ class PdfViewerWidget(QWidget):
                 annot.set_rect(new_rect)    # type: ignore
                 annot.update()    # type: ignore
                 self.save_annot()
-                  
+
         self.moved_annot_page = (None, None)
         self.disable_move_text_annot_mode()
+
+    def hover_link(self):
+        curtime = time.time()
+        if curtime - self.scroll_wheel_lasttime <= 0.5:
+            return None
+
+        if self.is_move_text_annot_mode:
+            return None
+
+        ex, ey, page_index = self.get_cursor_absolute_position()
+        page = self.document[page_index]
+
+        links = []
+        link = page.first_link
+        while link:
+            links.append(link)
+            link = link.next
+
+        is_hover_link = False
+        current_link = None
+        last_hover_link = None
+
+        for link in links:
+            if fitz.Point(ex, ey) in link.rect:
+                is_hover_link = True
+                current_link = link
+                break
+
+        # update and print message only if changed
+        if (is_hover_link != self.is_hover_link or
+            (current_link != None and current_link != self.last_hover_link)):
+
+            if is_hover_link:
+                QApplication.setOverrideCursor(Qt.CursorShape.PointingHandCursor)
+            else:
+                QApplication.setOverrideCursor(Qt.CursorShape.ArrowCursor)
+
+            if current_link:
+                self.last_hover_link = current_link
+                if current_link != self.last_hover_link or not QToolTip.isVisible():
+                    tooltip_text = ""
+                    if link.is_external:
+                        tooltip_text = "Link to uri: " + str(current_link.uri)
+                    else:
+                        page_num = current_link.dest.page
+                        tooltip_text = "Link to page: " + str(page_num + 1)
+                        QToolTip.showText(QCursor.pos(), tooltip_text,
+                                          None, QRect(), 10000)
+            else:
+                if QToolTip.isVisible():
+                    QToolTip.hideText()
+
+            self.is_hover_link = is_hover_link
+
+        return current_link
 
     def jump_to_page(self, page_num):
         self.update_vertical_offset(min(max(self.scale * int(page_num - 1) * self.page_height, 0), self.max_scroll_offset()))
@@ -1428,11 +1493,12 @@ class PdfViewerWidget(QWidget):
             if not self.document.is_pdf:
                 # workaround for epub click link
                 if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.RightButton:
-                    self.handle_click_link()
+                    self.handle_click_link(False)
                 return False
 
         if event.type() == QEvent.Type.MouseMove:
             if self.hasMouseTracking():
+                self.hover_link()
                 self.check_annot()
             else:
                 self.handle_select_mode()
@@ -1455,11 +1521,18 @@ class PdfViewerWidget(QWidget):
                 if event.button() != Qt.MouseButton.LeftButton:
                     self.disable_move_text_annot_mode()
             else:
+                modifiers = QApplication.keyboardModifiers()
                 if event.button() == Qt.MouseButton.LeftButton:
                     # In order to catch mouse move event when drap mouse.
-                    self.setMouseTracking(False)
+                    if self.is_hover_link:
+                        if modifiers == Qt.KeyboardModifier.ControlModifier:
+                            self.handle_click_link(True)
+                        else:
+                            self.handle_click_link(False)
+                    else:
+                        self.setMouseTracking(False)
                 elif event.button() == Qt.MouseButton.RightButton:
-                    self.handle_click_link()
+                    self.handle_click_link(True)
 
         elif event.type() == QEvent.Type.MouseButtonRelease:
             # Capture move event, event without holding down the mouse.
@@ -1553,10 +1626,10 @@ class PdfViewerWidget(QWidget):
                 self.last_char_rect_index, self.last_char_page_index = rect_index, page_index
                 self.update()
 
-    def handle_click_link(self):
+    def handle_click_link(self, external_browser=False):
         event_link = self.get_event_link()
         if event_link:
-            self.handle_jump_to_link(event_link)
+            self.handle_jump_to_link(event_link, external_browser)
 
     def handle_translate_word(self):
         double_click_word = self.get_double_click_word()
