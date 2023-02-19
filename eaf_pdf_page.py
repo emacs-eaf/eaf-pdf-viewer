@@ -307,7 +307,9 @@ class PdfPage(fitz.Page):
                 self.page.delete_annot(annot)
             self._mark_link_annot_list = []
 
-    def mark_search_text(self, keyword):
+    def mark_search_text(self, keyword, current_quads):
+        self.cleanup_search_text()
+
         if support_hit_max:
             quads_list = self.page.searchFor(keyword, hit_max=999, quads=True)
         else:
@@ -317,11 +319,15 @@ class PdfPage(fitz.Page):
             for quads in quads_list:
                 annot = self.page.add_highlight_annot(quads)
                 annot.parent = self.page
+                if quads == current_quads:
+                    qcolor = QColor("#f28100")
+                    annot.set_colors(stroke=qcolor.getRgbF()[0:3])
+                    annot.update()
                 self._mark_search_annot_list.append(annot)
 
     def cleanup_search_text(self):
         if self._mark_search_annot_list:
-            message_to_emacs("Unmarked all matched results.")
+            # message_to_emacs("Unmarked all matched results.")
             for annot in self._mark_search_annot_list:
                 self.page.delete_annot(annot)
             self._mark_search_annot_list = []
