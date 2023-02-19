@@ -185,7 +185,7 @@ class PdfPage(fitz.Page):
                 set_page_crop_box(self.page)(self.clip)
             except:
                 pass
-            
+
         pixmap = get_page_pixmap(self.page)(matrix=fitz.Matrix(scale, scale), alpha=True)
 
         # make background transparent
@@ -269,6 +269,7 @@ class PdfPage(fitz.Page):
         # if exclude image is True, will find the page all image, then get
         # each image rect. Finally, again invert all image rect.
 
+        self.page.clean_contents()
         # exclude image only support PDF document
         imagelist = None
         try:
@@ -277,20 +278,19 @@ class PdfPage(fitz.Page):
             # PyMupdf 1.14 not include argument 'full'.
             imagelist = get_page_image_list(self.page)
 
-        imagebboxlist = []
+        rect = fitz.Rect()
         for image in imagelist:
             try:
-                imagerect = get_page_image_bbox(self.page)(image)
+                imagerect, _ = get_page_image_bbox(self.page)(image, True)
                 if imagerect.is_infinite or imagerect.is_empty:
                     continue
                 else:
-                    imagebboxlist.append(imagerect)
+                    rect.include_rect(imagerect)
             except Exception:
                 import traceback
                 traceback.print_exc()
 
-        for bbox in imagebboxlist:
-            pixmap_invert_irect(pixmap)(bbox * self.page.rotation_matrix * scale)
+        pixmap_invert_irect(pixmap)(rect * self.page.rotation_matrix * scale)
 
         return pixmap
 
