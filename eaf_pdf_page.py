@@ -188,6 +188,13 @@ class PdfPage(fitz.Page):
             
         pixmap = get_page_pixmap(self.page)(matrix=fitz.Matrix(scale, scale), alpha=True)
 
+        # make background transparent
+        sample_color = pixmap.pixel(0,0)
+        if sample_color[3] == 255:
+            pixmap = self.make_background_transparent(pixmap, sample_color[:3])
+        elif sample_color[3] == 0:
+            pixmap = self.make_background_transparent(pixmap, (255,255,255))
+
         if invert:
             pixmap_invert_irect(pixmap)(pixmap.irect)
 
@@ -249,6 +256,12 @@ class PdfPage(fitz.Page):
             return None, True
 
         return None, False
+
+    def make_background_transparent(self, pixmap, opaque_color):
+        pixalpha = fitz.Pixmap(None, pixmap)
+        alpha = pixalpha.samples
+        pixmap.set_alpha(alpha, 1, opaque=opaque_color)
+        return pixmap
 
     def with_invert_exclude_image(self, scale, pixmap):
         # steps:
