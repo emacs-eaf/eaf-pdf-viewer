@@ -185,7 +185,7 @@ class PdfPage(fitz.Page):
                 set_page_crop_box(self.page)(self.clip)
             except:
                 pass
-            
+
         pixmap = get_page_pixmap(self.page)(matrix=fitz.Matrix(scale, scale), alpha=True)
 
         # make background transparent
@@ -198,7 +198,7 @@ class PdfPage(fitz.Page):
         if invert:
             pixmap_invert_irect(pixmap)(pixmap.irect)
 
-        if not invert_image and invert:
+        if invert_image:
             pixmap = self.with_invert_exclude_image(scale, pixmap)
 
         img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format.Format_RGBA8888)
