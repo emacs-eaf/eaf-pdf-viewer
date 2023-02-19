@@ -121,7 +121,12 @@ class PdfViewerWidget(QWidget):
 
         #global search text
         self.is_mark_search = False
+        self.search_term = ""
+        self.search_mode_forward = False
+        self.search_mode_backward = False
         self.search_text_offset_list = []
+        self.current_search_quads = None
+        self.search_text_quads_list = []
 
         # select text
         self.is_select_mode = False
@@ -204,6 +209,7 @@ class PdfViewerWidget(QWidget):
 
         self.start_page_index = 0
         self.start_page_index_before_presentation = 0
+        self.current_page_index = 0
         self.last_page_index = 0
 
         self.load_document(url)
@@ -345,7 +351,7 @@ class PdfViewerWidget(QWidget):
 
         # follow page search text
         if self.is_mark_search:
-            page.mark_search_text(self.search_term)
+            page.mark_search_text(self.search_term, self.current_search_quads)
         else:
             page.cleanup_search_text()
 
@@ -440,6 +446,9 @@ class PdfViewerWidget(QWidget):
             return "#000000"
 
     def paintEvent(self, event):
+        # update page base information
+        self.update_page_index()
+
         # Init painter.
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -592,17 +601,14 @@ class PdfViewerWidget(QWidget):
 
     def update_page_progress(self, painter):
         # Show in mode-line-position
-        current_page = math.floor((self.start_page_index +
-                                   self.last_page_index + 1) / 2)
-
         eval_in_emacs("eaf--pdf-update-position", [self.buffer_id,
-                                                   current_page,
+                                                   self.current_page_index,
                                                    self.page_total_number])
 
         # Draw progress on page.
         show_progress_on_page, = get_emacs_vars(["eaf-pdf-show-progress-on-page"])
         if show_progress_on_page:
-            progress_percent = int(current_page * 100 / self.page_total_number)
+            progress_percent = int(self.current_page_index * 100 / self.page_total_number)
             progress_rect = QRect(int(self.page_render_x + self.page_annotate_padding_x),
                                   int(self.rect().y() + self.page_annotate_padding_y),
                                   int(self.page_render_width - self.page_annotate_padding_x * 2),
@@ -610,7 +616,9 @@ class PdfViewerWidget(QWidget):
 
             painter.drawText(progress_rect,
                              Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
-                             "{}% ( {}/{} )".format(progress_percent, current_page, self.page_total_number))
+                             "{}% ( {}/{} )".format(progress_percent,
+                                                    self.current_page_index,
+                                                    self.page_total_number))
 
     def build_context_wrap(f):    # type: ignore
         def wrapper(*args):
@@ -659,6 +667,19 @@ class PdfViewerWidget(QWidget):
                 new_pos = (self.horizontal_offset + event.angleDelta().x() / 120 * self.scroll_step_horizontal)
                 max_pos = (self.page_width * self.scale - self.rect().width())
                 self.update_horizontal_offset(max(min(new_pos , max_pos), -max_pos))    # type: ignore
+
+    def update_page_index(self):
+        self.start_page_index = min(int(self.scroll_offset * 1.0 / self.scale / self.page_height),
+                                    self.page_total_number - 1)
+        if self.scroll_offset == 0:
+            self.current_page_index = 1
+        elif self.scroll_offset == self.max_scroll_offset():
+            self.current_page_index = self.page_total_number
+        else:
+            self.current_page_index = max(math.ceil(((self.scroll_offset + self.rect().height() * 5.0 / 9.0) / self.scale / self.page_height)),
+                                          self.start_page_index + 1)
+        self.last_page_index = min(int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height) + 1,
+                                   self.page_total_number)
 
     def update_page_size(self, rect):
         current_page_index = self.start_page_index
@@ -980,13 +1001,35 @@ class PdfViewerWidget(QWidget):
         self.page_cache_pixmap_dict.clear()
         self.update()
 
+    def jump_to_search_offset(self, offset):
+        if (offset < self.scroll_offset + 0.05 * self.rect().height() or
+            offset > self.scroll_offset + 0.95 * self.rect().height()):
+            jump_offset = max(0, offset - 0.05 * self.rect().height())
+            self.update_vertical_offset(jump_offset)
+
     def search_text(self, text):
         self.is_mark_search = True
         self.search_term = text
+        self.page_cache_pixmap_dict.clear()
+        self.search_text_offset_list.clear()
+        self.search_text_quads_list.clear()
+
+        if self.search_term == "":
+            for page_index in range(self.page_total_number):
+                page = self.document[page_index]
+                page.cleanup_search_text()
+            self.page_cache_pixmap_dict.clear()
+            self.update()
+            return
 
         self.search_text_index = 0
 
         for page_index in range(self.page_total_number):
+            # Search from the current page
+            page = self.document[page_index]
+            if page_index < self.current_page_index:
+                self.search_text_index = len(self.search_text_quads_list)
+
             if support_hit_max:
                 quads_list = self.document.search_page_for(page_index, text, hit_max=999, quads=True)
             else:
@@ -995,37 +1038,46 @@ class PdfViewerWidget(QWidget):
             if quads_list:
                 for index, quad in enumerate(quads_list):
                     search_text_offset = (page_index * self.page_height + quad.ul.y) * self.scale
-
                     self.search_text_offset_list.append(search_text_offset)
-                    if search_text_offset > self.scroll_offset and search_text_offset < (self.scroll_offset + self.rect().height()):
-                        self.search_text_index = index
+                    self.search_text_quads_list.append(quad)
 
         if(len(self.search_text_offset_list) == 0):
             message_to_emacs("No results found with \"" + text + "\".")
             self.is_mark_search = False
         else:
+            self.jump_to_search_offset(self.search_text_offset_list[self.search_text_index])
+            self.current_search_quads = self.search_text_quads_list[self.search_text_index]
             self.page_cache_pixmap_dict.clear()
             self.update()
             self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])    # type: ignore
-            message_to_emacs("Found " + str(len(self.search_text_offset_list)) + " results with \"" + text + "\".")
 
     def jump_next_match(self):
         if len(self.search_text_offset_list) > 0:
             self.search_text_index = (self.search_text_index + 1) % len(self.search_text_offset_list)
-            self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])    # type: ignore
-            message_to_emacs("Match " + str(self.search_text_index + 1) + "/" + str(len(self.search_text_offset_list)))
+            self.jump_to_search_offset(self.search_text_offset_list[self.search_text_index])
+            message_to_emacs(str(self.search_text_index + 1) + "/" + str(len(self.search_text_offset_list)), False, False)
+            self.current_search_quads = self.search_text_quads_list[self.search_text_index]
+            self.page_cache_pixmap_dict.clear()
+            self.update()
 
     def jump_last_match(self):
         if len(self.search_text_offset_list) > 0:
             self.search_text_index = (self.search_text_index - 1) % len(self.search_text_offset_list)
-            self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])    # type: ignore
-            message_to_emacs("Match " + str(self.search_text_index + 1) + "/" + str(len(self.search_text_offset_list)))
+            self.jump_to_search_offset(self.search_text_offset_list[self.search_text_index])
+            message_to_emacs(str(self.search_text_index + 1) + "/" + str(len(self.search_text_offset_list)), False, False)
+            self.current_search_quads = self.search_text_quads_list[self.search_text_index]
+            self.page_cache_pixmap_dict.clear()
+            self.update()
 
     def cleanup_search(self):
         self.is_mark_search = False
-        self.search_term = None
+        self.search_mode_forward = False
+        self.search_mode_backward = False
+        self.current_search_quads = None
+        self.search_term = ""
         self.page_cache_pixmap_dict.clear()
         self.search_text_offset_list.clear()
+        self.search_text_quads_list.clear()
         self.update()
 
     def get_select_char_list(self):
@@ -1408,9 +1460,8 @@ class PdfViewerWidget(QWidget):
             self.scroll_offset = new_offset
             self.update()
 
-            current_page = math.floor((self.start_page_index + self.last_page_index + 1) / 2)
             eval_in_emacs("eaf--pdf-update-position", [self.buffer_id,
-                                                       current_page,
+                                                       self.current_page_index,
                                                        self.page_total_number])
 
     def update_horizontal_offset(self, new_offset):

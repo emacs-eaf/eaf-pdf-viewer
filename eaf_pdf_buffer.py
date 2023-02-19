@@ -137,6 +137,24 @@ class AppBuffer(Buffer):
         if callback_tag == "jump_link":
             self.buffer_widget.cleanup_links()
 
+    def handle_search_forward(self, callback_tag):
+        if callback_tag == "search_text":
+            if self.buffer_widget.search_term != "":
+                self.buffer_widget.jump_next_match()
+            else:
+                message_to_emacs("Please enter a search string!", False, False)
+
+    def handle_search_backward(self, callback_tag):
+        if callback_tag == "search_text":
+            if self.buffer_widget.search_term != "":
+                self.buffer_widget.jump_last_match()
+            else:
+                message_to_emacs("Please enter a search string!", False, False)
+
+    def handle_search_finish(self, callback_tag):
+        if callback_tag == "search_text":
+            self.buffer_widget.cleanup_search()
+
     def scroll_other_buffer(self, scroll_direction, scroll_type):
         if scroll_type == "page":
             if scroll_direction == "up":
@@ -169,8 +187,8 @@ class AppBuffer(Buffer):
             self.buffer_widget.scroll_offset = float(scroll_offset)
             self.buffer_widget.scroll_offset_before_presentation = float(scroll_offset)
         if self.buffer_widget.scroll_offset < 0:
-            self.buffer_widget.scroll_offset = 0 
-            self.buffer_widget.scroll_offset_before_presentation = 0 
+            self.buffer_widget.scroll_offset = 0
+            self.buffer_widget.scroll_offset_before_presentation = 0
         self.buffer_widget.scale = float(scale)
         self.buffer_widget.scale_before_presentation = float(scale)
         self.buffer_widget.read_mode = read_mode
@@ -179,10 +197,10 @@ class AppBuffer(Buffer):
         self.buffer_widget.inverted_mode = inverted_mode == "True"
         self.buffer_widget.start_page_index = int(start_page_index)
         self.buffer_widget.presentation_mode = read_mode == "fit_to_presentation"
-        
+
         if read_mode == "fit_to_presentation":
             QTimer().singleShot(10, self.enable_fullscreen)
-        
+
         self.buffer_widget.update()
 
     def jump_to_page(self):
@@ -217,16 +235,31 @@ class AppBuffer(Buffer):
             self.buffer_widget.cleanup_select()
 
     def search_text_forward(self):
+        self.buffer_widget.search_mode_forward = True
+        self.buffer_widget.search_mode_backward = False
         if self.buffer_widget.is_mark_search:
             self.buffer_widget.jump_next_match()
         else:
-            self.send_input_message("Search Text: ", "search_text")
+            self.send_input_message("Search Text: ", "search_text", "search")
 
     def search_text_backward(self):
+        self.buffer_widget.search_mode_forward = False
+        self.buffer_widget.search_mode_backward = True
         if self.buffer_widget.is_mark_search:
             self.buffer_widget.jump_last_match()
         else:
-            self.send_input_message("Search Text: ", "search_text")
+            self.send_input_message("Search Text: ", "search_text", "search")
+
+    def edit_search_or_annot_text(self):
+        ''' Edit the atomic text or search text.'''
+        if self.buffer_widget.search_mode_forward:
+            self.send_input_message("Search Text: ", "search_text",
+                                    "search", self.buffer_widget.search_term)
+        elif self.buffer_widget.search_mode_backward:
+            self.send_input_message("Search Text: ", "search_text",
+                                    "search", self.buffer_widget.search_term)
+        else:
+            self.edit_annot_text()
 
     def copy_select(self):
         if self.buffer_widget.is_select_mode:
