@@ -212,7 +212,7 @@ class PdfViewerWidget(QWidget):
         self.inverted_mode = False
 
         # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
-        self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.is_pddf
+        self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.is_pdf
 
         # synctex init page
         if self.synctex_info.page_num != None:
