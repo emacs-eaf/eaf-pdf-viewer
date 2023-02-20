@@ -278,19 +278,29 @@ class PdfPage(fitz.Page):
             # PyMupdf 1.14 not include argument 'full'.
             imagelist = get_page_image_list(self.page)
 
-        rect = fitz.Rect()
+        image_rects = []
         for image in imagelist:
             try:
                 imagerect, _ = get_page_image_bbox(self.page)(image, True)
                 if imagerect.is_infinite or imagerect.is_empty:
                     continue
-                else:
-                    rect.include_rect(imagerect)
+
+                intersects = []
+                for rect in image_rects:
+                    intersect = fitz.Rect(rect).intersect(imagerect)
+                    if intersect.is_infinite or intersect.is_empty:
+                        continue
+                    intersects.append(intersect)
+
+                image_rects.append(imagerect)
+                image_rects.extend(intersects)
+
             except Exception:
                 import traceback
                 traceback.print_exc()
 
-        pixmap_invert_irect(pixmap)(rect * self.page.rotation_matrix * scale)
+        for rect in image_rects:
+            pixmap_invert_irect(pixmap)(rect * self.page.rotation_matrix * scale)
 
         return pixmap
 
