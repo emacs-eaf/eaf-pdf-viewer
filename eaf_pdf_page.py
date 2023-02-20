@@ -278,11 +278,14 @@ class PdfPage(fitz.Page):
             # PyMupdf 1.14 not include argument 'full'.
             imagelist = get_page_image_list(self.page)
 
+        page_words = self.page.get_text_words()
+
         image_rects = []
         for image in imagelist:
             try:
                 imagerect, _ = get_page_image_bbox(self.page)(image, True)
-                if imagerect.is_infinite or imagerect.is_empty:
+                # Don't invert image if it is infinite, empty or intersect with words.
+                if imagerect.is_infinite or imagerect.is_empty or self.image_intersect_with_words(imagerect, page_words):
                     continue
 
                 intersects = []
@@ -303,6 +306,14 @@ class PdfPage(fitz.Page):
             pixmap_invert_irect(pixmap)(rect * self.page.rotation_matrix * scale)
 
         return pixmap
+
+    def image_intersect_with_words(self, imagerect, page_words):
+        "If a image intersect with page words, there is a high probability that this picture is a watermark."
+        for page_word in page_words:
+            if fitz.Rect(page_word[:4]).intersects(imagerect):
+                return True
+
+        return False
 
     def add_mark_link(self):
         if self.page.first_link:
