@@ -23,6 +23,8 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtCore import QTimer
 from core.buffer import Buffer    # type: ignore
 from core.utils import (eval_in_emacs, message_to_emacs,translate_text, atomic_edit, get_emacs_vars, get_emacs_config_dir, touch)    # type: ignore
+from eaf_pdf_widget import PdfViewerWidget
+from eaf_pdf_utils import use_new_doc_name
 import fitz
 import os
 import threading
@@ -30,9 +32,6 @@ import threading
 # hack: add current dir path to sys.path for relative path import other modules.
 import sys
 sys.path.append(os.path.dirname(__file__))
-
-from eaf_pdf_widget import PdfViewerWidget
-from eaf_pdf_utils import use_new_doc_name
 
 class SynctexInfo():
     def __init__(self, info):
@@ -183,7 +182,7 @@ class AppBuffer(Buffer):
             (scroll_offset, scale, read_mode, inverted_mode, rotation) = session_data.split(":")
         elif session_data.count(":") == 5:
             (scroll_offset, scale, read_mode, inverted_mode, rotation, start_page_index) = session_data.split(":")
-        if self.synctex_info.page_num == None:
+        if self.synctex_info.page_num is None:
             self.buffer_widget.scroll_offset = float(scroll_offset)
             self.buffer_widget.scroll_offset_before_presentation = float(scroll_offset)
         if self.buffer_widget.scroll_offset < 0:
