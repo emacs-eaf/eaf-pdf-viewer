@@ -23,7 +23,7 @@ from PyQt6.QtCore import QRect, QRectF
 from PyQt6.QtGui import QColor, QPixmap, QImage, QCursor
 from PyQt6.QtGui import QPainter
 from PyQt6.QtWidgets import QToolTip
-from core.utils import (message_to_emacs, get_emacs_vars)
+from core.utils import (get_emacs_vars)
 import fitz
 
 from eaf_pdf_utils import generate_random_key, support_hit_max
