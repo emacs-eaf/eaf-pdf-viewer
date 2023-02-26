@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from PyQt6.QtCore import Qt, QRect, QRectF, QPoint, QEvent, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QRect, QPoint, QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QCursor
 from PyQt6.QtGui import QPainter, QPalette
 from PyQt6.QtWidgets import QWidget, QApplication, QToolTip
@@ -27,15 +27,14 @@ from core.utils import (interactive, eval_in_emacs, message_to_emacs,    # type:
                         atomic_edit, get_emacs_var, get_emacs_vars,
                         get_emacs_func_result, get_emacs_config_dir,
                         get_emacs_theme_mode, get_emacs_theme_foreground,
-                        get_emacs_theme_background, get_app_dark_mode,
-                        open_url_in_new_tab)
+                        get_emacs_theme_background)
 import fitz
 import time
 import math
 import webbrowser
 
 from eaf_pdf_document import PdfDocument
-from eaf_pdf_utils import convert_hex_to_qcolor, support_hit_max
+from eaf_pdf_utils import support_hit_max
 from eaf_pdf_annot import AnnotAction
 
 def set_page_crop_box(page):
@@ -221,7 +220,7 @@ class PdfViewerWidget(QWidget):
         self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.is_pdf
 
         # synctex init page
-        if self.synctex_info.page_num != None:
+        if self.synctex_info.page_num is not None:
             self.jump_to_page(self.synctex_info.page_num)    # type: ignore
 
     def load_document(self, url):
@@ -539,7 +538,7 @@ class PdfViewerWidget(QWidget):
             self.draw_scroll_page(painter, index)
 
             # Draw an indicator for synctex position
-            if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y != None:
+            if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y is not None:
                 indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
                 self.draw_synctex_indicator(painter, 15, indicator_pos_y)
 
@@ -1160,7 +1159,7 @@ class PdfViewerWidget(QWidget):
 
     def annot_popup_text_annot(self, text=None):
         (point, page_index) = self.popup_text_annot_pos
-        if point == None or page_index == None:
+        if point is None or page_index is None:
             return
 
         page = self.document[page_index]
@@ -1185,7 +1184,7 @@ class PdfViewerWidget(QWidget):
 
     def annot_inline_text_annot(self, text=None):
         (point, page_index) = self.inline_text_annot_pos
-        if point == None or page_index == None:
+        if point is None or page_index is None:
             return
 
         page = self.document[page_index]
@@ -1397,7 +1396,6 @@ class PdfViewerWidget(QWidget):
 
         is_hover_link = False
         current_link = None
-        last_hover_link = None
 
         for link in links:
             if fitz.Point(ex, ey) in link.rect:
@@ -1407,7 +1405,7 @@ class PdfViewerWidget(QWidget):
 
         # update and print message only if changed
         if (is_hover_link != self.is_hover_link or
-            (current_link != None and current_link != self.last_hover_link)):
+            (current_link is not None and current_link != self.last_hover_link)):
 
             if is_hover_link:
                 QApplication.setOverrideCursor(Qt.CursorShape.PointingHandCursor)
