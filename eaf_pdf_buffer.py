@@ -23,8 +23,6 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtCore import QTimer
 from core.buffer import Buffer    # type: ignore
 from core.utils import (eval_in_emacs, message_to_emacs,translate_text, atomic_edit, get_emacs_vars, get_emacs_config_dir, touch)    # type: ignore
-from eaf_pdf_widget import PdfViewerWidget
-from eaf_pdf_utils import use_new_doc_name
 import fitz
 import os
 import threading
@@ -32,6 +30,9 @@ import threading
 # hack: add current dir path to sys.path for relative path import other modules.
 import sys
 sys.path.append(os.path.dirname(__file__))
+
+from eaf_pdf_widget import PdfViewerWidget
+from eaf_pdf_utils import use_new_doc_name
 
 class SynctexInfo():
     def __init__(self, info):
