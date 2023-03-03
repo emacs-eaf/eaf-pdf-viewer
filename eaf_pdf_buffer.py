@@ -22,7 +22,9 @@
 from PyQt6.QtGui import QColor
 from PyQt6.QtCore import QTimer
 from core.buffer import Buffer    # type: ignore
-from core.utils import (eval_in_emacs, message_to_emacs,translate_text, atomic_edit, get_emacs_vars, get_emacs_config_dir, touch)    # type: ignore
+from core.utils import (eval_in_emacs, message_to_emacs,translate_text, interactive, get_emacs_theme_mode,
+                        get_emacs_theme_background, get_emacs_theme_foreground,
+                        atomic_edit, get_emacs_vars, get_emacs_config_dir, touch)
 import fitz
 import os
 import threading
@@ -84,6 +86,16 @@ class AppBuffer(Buffer):
         # Convert title if pdf is converted from office file.
         if arguments.endswith("_office_pdf"):
             self.change_title(arguments.split("_office_pdf")[0])
+
+    @interactive
+    def update_theme(self):
+        self.buffer_widget.theme_mode = get_emacs_theme_mode()
+        self.buffer_widget.theme_foreground_color = get_emacs_theme_foreground()
+        self.buffer_widget.theme_background_color = get_emacs_theme_background()
+        self.buffer_widget.background_color = QColor(self.buffer_widget.theme_background_color)
+        self.buffer_widget.fill_background()
+        self.buffer_widget.page_cache_pixmap_dict.clear()
+        self.buffer_widget.update()
 
     def record_open_history(self):
         if self.store_history:

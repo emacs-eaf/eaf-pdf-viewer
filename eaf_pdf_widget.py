@@ -180,10 +180,7 @@ class PdfViewerWidget(QWidget):
         self.page_padding = 10
 
         # Fill app background color
-        pal = self.palette()
-        pal.setColor(QPalette.ColorRole.Window, self.background_color)
-        self.setAutoFillBackground(True)
-        self.setPalette(pal)
+        self.fill_background()
 
         # Init font.
         self.page_annotate_padding_x = 10
@@ -222,6 +219,12 @@ class PdfViewerWidget(QWidget):
         # synctex init page
         if self.synctex_info.page_num is not None:
             self.jump_to_page(self.synctex_info.page_num)    # type: ignore
+
+    def fill_background(self):
+        pal = self.palette()
+        pal.setColor(QPalette.ColorRole.Window, self.background_color)
+        self.setAutoFillBackground(True)
+        self.setPalette(pal)
 
     def load_document(self, url):
         if self.page_cache_pixmap_dict:
