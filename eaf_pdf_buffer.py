@@ -341,7 +341,7 @@ class AppBuffer(Buffer):
         if self.buffer_widget.is_select_mode:
             self.buffer_widget.annot_select_char_area("text", new_text)
         elif self.buffer_widget.is_hover_annot:
-            if self.buffer_widget.edited_annot_page[0] != None:
+            if self.buffer_widget.edited_annot_page[0] is not None:
                 self.buffer_widget.edit_annot_text(new_text)
         elif self.buffer_widget.is_popup_text_annot_mode:
             self.buffer_widget.annot_popup_text_annot(new_text)

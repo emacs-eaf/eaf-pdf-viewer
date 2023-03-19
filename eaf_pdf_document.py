@@ -20,7 +20,6 @@
 
 from core.utils import (message_to_emacs, get_emacs_vars)
 import fitz
-import time
 import functools
 
 from eaf_pdf_page import PdfPage
