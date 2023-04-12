@@ -671,8 +671,11 @@ class PdfViewerWidget(QWidget):
                 self.update_horizontal_offset(max(min(new_pos , max_pos), -max_pos))    # type: ignore
 
     def update_page_index(self):
-        self.start_page_index = min(int(self.scroll_offset * 1.0 / self.scale / self.page_height),
-                                    self.page_total_number - 1)
+        # Don't adjust start_page_index if is in presentation mode.
+        if self.read_mode != "fit_to_presentation":
+            self.start_page_index = min(int(self.scroll_offset * 1.0 / self.scale / self.page_height),
+                                        self.page_total_number - 1)
+
         if self.scroll_offset == 0:
             self.current_page_index = 1
         elif self.scroll_offset == self.max_scroll_offset():
