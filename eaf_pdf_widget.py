@@ -1050,11 +1050,16 @@ class PdfViewerWidget(QWidget):
             message_to_emacs("No results found with \"" + text + "\".")
             self.is_mark_search = False
         else:
-            self.jump_to_search_offset(self.search_text_offset_list[self.search_text_index])
-            self.current_search_quads = self.search_text_quads_list[self.search_text_index]
-            self.page_cache_pixmap_dict.clear()
-            self.update()
-            self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])    # type: ignore
+            try:
+                self.jump_to_search_offset(self.search_text_offset_list[self.search_text_index])
+                self.current_search_quads = self.search_text_quads_list[self.search_text_index]
+                self.page_cache_pixmap_dict.clear()
+                self.update()
+                self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])    # type: ignore
+            except Exception:
+                message_to_emacs("Unexpected error while searching: " + text)
+                self.is_mark_search = False
+
 
     def jump_next_match(self):
         if len(self.search_text_offset_list) > 0:
