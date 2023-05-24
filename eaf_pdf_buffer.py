@@ -252,7 +252,8 @@ class AppBuffer(Buffer):
         if self.buffer_widget.is_mark_search:
             self.buffer_widget.jump_next_match()
         else:
-            self.send_input_message("Search Text: ", "search_text", "search")
+            self.send_input_message("Search Text: ", "search_text", "search",
+                                    self.buffer_widget.last_search_term)
 
     def search_text_backward(self):
         self.buffer_widget.search_mode_forward = False
@@ -260,16 +261,17 @@ class AppBuffer(Buffer):
         if self.buffer_widget.is_mark_search:
             self.buffer_widget.jump_last_match()
         else:
-            self.send_input_message("Search Text: ", "search_text", "search")
+            self.send_input_message("Search Text: ", "search_text", "search",
+                                    self.buffer_widget.last_search_term)
 
     def edit_search_or_annot_text(self):
         ''' Edit the atomic text or search text.'''
         if self.buffer_widget.search_mode_forward:
-            self.send_input_message("Search Text: ", "search_text",
-                                    "search", self.buffer_widget.search_term)
+            self.send_input_message("Search Text: ", "search_text", "search",
+                                    self.buffer_widget.search_term)
         elif self.buffer_widget.search_mode_backward:
-            self.send_input_message("Search Text: ", "search_text",
-                                    "search", self.buffer_widget.search_term)
+            self.send_input_message("Search Text: ", "search_text", "search",
+                                    self.buffer_widget.search_term)
         else:
             self.edit_annot_text()
 

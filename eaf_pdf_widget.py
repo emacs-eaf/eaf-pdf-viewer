@@ -121,6 +121,7 @@ class PdfViewerWidget(QWidget):
         #global search text
         self.is_mark_search = False
         self.search_term = ""
+        self.last_search_term = ""
         self.search_mode_forward = False
         self.search_mode_backward = False
         self.search_text_offset_list = []
@@ -1015,6 +1016,7 @@ class PdfViewerWidget(QWidget):
     def search_text(self, text):
         self.is_mark_search = True
         self.search_term = text
+        self.last_search_term = text
         self.page_cache_pixmap_dict.clear()
         self.search_text_offset_list.clear()
         self.search_text_quads_list.clear()
