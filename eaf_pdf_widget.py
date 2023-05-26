@@ -988,7 +988,7 @@ class PdfViewerWidget(QWidget):
             self.cleanup_links()
 
             self.save_current_pos()
-            self.jump_to_page(link["page"])    # type: ignore
+            self.jump_to_page(int(link["page"]) + 1)    # type: ignore
 
             message_to_emacs("Landed on Page " + str(link["page"] + 1))
         elif "uri" in link:
@@ -1445,7 +1445,8 @@ class PdfViewerWidget(QWidget):
         return current_link
 
     def jump_to_page(self, page_num):
-        self.update_vertical_offset(min(max(self.scale * int(page_num) * self.page_height, 0), self.max_scroll_offset()))
+        page_nume = int(page_num) - 1
+        self.update_vertical_offset(min(max(self.scale * page_nume * self.page_height, 0), self.max_scroll_offset()))
 
     def jump_to_percent(self, percent):
         self.update_vertical_offset(min(max(self.scale * (self.page_total_number * self.page_height * percent / 100.0), 0), self.max_scroll_offset()))
