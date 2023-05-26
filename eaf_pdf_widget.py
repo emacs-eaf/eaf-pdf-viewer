@@ -204,6 +204,11 @@ class PdfViewerWidget(QWidget):
 
         self.last_hover_annot_id = None
 
+        # Saved positions
+        self.saved_pos_sequence = []
+        self.saved_pos_index = -1
+        self.remember_offset = None
+
         self.start_page_index = 0
         self.start_page_index_before_presentation = 0
         self.current_page_index = 0
@@ -320,6 +325,8 @@ class PdfViewerWidget(QWidget):
     @interactive
     def save_current_pos(self):
         self.remember_offset = self.scroll_offset
+        self.saved_pos_index = len(self.saved_pos_sequence)
+        self.saved_pos_sequence.append(self.scroll_offset)
         message_to_emacs("Saved current position.")
 
     @interactive
@@ -332,6 +339,28 @@ class PdfViewerWidget(QWidget):
             self.update()
             self.remember_offset = current_scroll_offset
             message_to_emacs("Jumped to saved position.")
+
+    @interactive
+    def jump_to_previous_saved_pos(self):
+        if self.saved_pos_index < 0:
+            message_to_emacs("No more previous saved postition.")
+        else:
+            if self.saved_pos_index + 1 == len(self.saved_pos_sequence):
+                self.saved_pos_sequence.append(self.scroll_offset)
+            self.scroll_offset = self.saved_pos_sequence[self.saved_pos_index]
+            self.saved_pos_index = self.saved_pos_index - 1
+            self.update()
+            message_to_emacs("Jumped to previous saved position.")
+
+    @interactive
+    def jump_to_next_saved_pos(self):
+        if self.saved_pos_index + 1 >= len(self.saved_pos_sequence):
+            message_to_emacs("No more next saved position.")
+        else:
+            self.scroll_offset = self.saved_pos_sequence[self.saved_pos_index]
+            self.saved_pos_index = self.saved_pos_index + 1
+            self.update()
+            message_to_emacs("Jumped to next saved position.")
 
     def get_page_pixmap(self, index, scale, rotation=0):
         # Just return cache pixmap when found match index and scale in cache dict.
@@ -1596,6 +1625,12 @@ class PdfViewerWidget(QWidget):
                         self.setMouseTracking(False)
                 elif event.button() == Qt.MouseButton.RightButton:
                     self.handle_click_link(True)
+                elif event.button() == Qt.MouseButton.MiddleButton:
+                    self.save_current_pos()
+                elif event.button() == Qt.MouseButton.ForwardButton:
+                    self.jump_to_next_saved_pos()
+                elif event.button() == Qt.MouseButton.BackButton:
+                    self.jump_to_previous_saved_pos()
 
         elif event.type() == QEvent.Type.MouseButtonRelease:
             # Capture move event, event without holding down the mouse.
