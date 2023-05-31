@@ -22,9 +22,7 @@
 from PyQt6.QtGui import QColor
 from PyQt6.QtCore import QTimer
 from core.buffer import Buffer    # type: ignore
-from core.utils import (eval_in_emacs, message_to_emacs,translate_text, interactive, get_emacs_theme_mode,
-                        get_emacs_theme_background, get_emacs_theme_foreground,
-                        atomic_edit, get_emacs_vars, get_emacs_config_dir, touch)
+from core.utils import *
 import fitz
 import os
 import threading

@@ -23,11 +23,7 @@ from PyQt6.QtCore import Qt, QRect, QPoint, QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QCursor
 from PyQt6.QtGui import QPainter, QPalette
 from PyQt6.QtWidgets import QWidget, QApplication, QToolTip
-from core.utils import (interactive, eval_in_emacs, message_to_emacs,    # type: ignore
-                        atomic_edit, get_emacs_var, get_emacs_vars,
-                        get_emacs_func_result, get_emacs_config_dir,
-                        get_emacs_theme_mode, get_emacs_theme_foreground,
-                        get_emacs_theme_background)
+from core.utils import *
 import fitz
 import time
 import math
