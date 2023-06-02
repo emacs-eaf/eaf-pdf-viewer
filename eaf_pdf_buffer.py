@@ -150,6 +150,8 @@ class AppBuffer(Buffer):
     def handle_search_forward(self, callback_tag):
         if callback_tag == "search_text":
             if self.buffer_widget.search_term != "":
+                eval_in_emacs("add-to-history", ["'minibuffer-history",
+                                                 self.buffer_widget.search_term])
                 self.buffer_widget.jump_next_match()
             else:
                 message_to_emacs("Please enter a search string!", False, False)
@@ -157,6 +159,8 @@ class AppBuffer(Buffer):
     def handle_search_backward(self, callback_tag):
         if callback_tag == "search_text":
             if self.buffer_widget.search_term != "":
+                eval_in_emacs("add-to-history", ["'minibuffer-history",
+                                                 self.buffer_widget.search_term])
                 self.buffer_widget.jump_last_match()
             else:
                 message_to_emacs("Please enter a search string!", False, False)
