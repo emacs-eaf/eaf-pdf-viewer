@@ -570,10 +570,11 @@ class PdfViewerWidget(QWidget):
 
             # Draw an indicator for synctex position
             if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y is not None:
-                indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
-                self.draw_arrow_indicator(painter, 15, self.page_render_y + indicator_pos_y)
+                indicator_pos_y = int(self.page_render_y + self.synctex_info.pos_y * self.scale)
+                self.draw_arrow_indicator(painter, 15, indicator_pos_y)
             elif self.link_page_num == index + 1 and self.link_page_offset_y is not None:
-                self.draw_arrow_indicator(painter, 15, self.page_render_y + self.link_page_offset_y)
+                indicator_pos_y = int(self.page_render_y + self.link_page_offset_y)
+                self.draw_arrow_indicator(painter, 15, indicator_pos_y)
 
     def draw_scroll_page(self, painter, index):
         # Draw page padding.
