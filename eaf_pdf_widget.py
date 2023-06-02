@@ -1036,7 +1036,11 @@ class PdfViewerWidget(QWidget):
         if (offset < self.scroll_offset + 0.05 * self.rect().height() or
             offset > self.scroll_offset + 0.95 * self.rect().height()):
             jump_offset = max(0, offset - 0.05 * self.rect().height())
-            self.update_vertical_offset(jump_offset)
+            max_offset = self.scale * self.page_total_number * self.page_height - self.rect().height()
+            if jump_offset < max_offset:
+                self.update_vertical_offset(jump_offset)
+            else:
+                self.update_vertical_offset(max_offset)
 
     def search_text(self, text):
         self.is_mark_search = True
