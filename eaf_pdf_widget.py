@@ -1426,17 +1426,11 @@ class PdfViewerWidget(QWidget):
         ex, ey, page_index = self.get_cursor_absolute_position()
         page = self.document[page_index]
 
-        links = []
-        link = page.first_link
-        while link:
-            links.append(link)
-            link = link.next
-
         is_hover_link = False
         current_link = None
 
-        for link in links:
-            if fitz.Point(ex, ey) in link.rect:
+        for link in page.get_links():
+            if fitz.Point(ex, ey) in link["from"]:
                 is_hover_link = True
                 current_link = link
                 break
@@ -1454,11 +1448,12 @@ class PdfViewerWidget(QWidget):
                 self.last_hover_link = current_link
                 if current_link != self.last_hover_link or not QToolTip.isVisible():
                     tooltip_text = ""
-                    if link.is_external:
-                        tooltip_text = "Link to uri: " + str(current_link.uri)
-                    else:
-                        page_num = current_link.dest.page
+                    if uri := current_link.get("uri"):
+                        tooltip_text = "Link to uri: " + str(uri)
+                    elif page_num := current_link.get("page"):
                         tooltip_text = "Link to page: " + str(page_num + 1)
+
+                    if tooltip_text != "":
                         QToolTip.showText(QCursor.pos(), tooltip_text,
                                           None, QRect(), 10000)
             else:
