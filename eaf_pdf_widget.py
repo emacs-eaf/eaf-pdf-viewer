@@ -569,7 +569,9 @@ class PdfViewerWidget(QWidget):
             # Draw an indicator for synctex position
             if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y is not None:
                 indicator_pos_y = int(self.synctex_info.pos_y * self.scale)
-                self.draw_synctex_indicator(painter, 15, self.page_render_y + indicator_pos_y)
+                self.draw_arrow_indicator(painter, 15, self.page_render_y + indicator_pos_y)
+            elif self.link_page_num == index + 1 and self.link_page_offset_y is not None:
+                self.draw_arrow_indicator(painter, 15, self.page_render_y + self.link_page_offset_y)
 
     def draw_scroll_page(self, painter, index):
         # Draw page padding.
@@ -611,7 +613,7 @@ class PdfViewerWidget(QWidget):
         painter.drawRect(rect)
         painter.drawPixmap(rect, qpixmap)
 
-    def draw_synctex_indicator(self, painter, x, y):
+    def draw_arrow_indicator(self, painter, x, y):
         from PyQt6.QtGui import QPolygon
 
         painter.save()
@@ -624,8 +626,13 @@ class PdfViewerWidget(QWidget):
         painter.setBrush(fill_color)
         painter.setPen(border_color)
         painter.drawPolygon(arrow)
-        QTimer().singleShot(5000, self.synctex_info.reset)
+        QTimer().singleShot(5000, self.clear_arrow_indicator)
         painter.restore()
+
+    def clear_arrow_indicator(self):
+        self.synctex_info.reset()
+        self.link_page_num = None
+        self.link_page_offset_y = None
 
     def update_page_progress(self, painter):
         # Show in mode-line-position
@@ -1011,11 +1018,14 @@ class PdfViewerWidget(QWidget):
     def handle_jump_to_link(self, link, external_browser=False):
         if "page" in link:
             self.cleanup_links()
-
             self.save_current_pos()
-            self.jump_to_page(int(link["page"]) + 1)    # type: ignore
 
-            message_to_emacs("Landed on Page " + str(link["page"] + 1))
+            target_point = link["to"]
+            link_offset = (link["page"] * self.page_height + target_point.y) * self.scale
+            self.link_page_num = link["page"] + 1
+            self.link_page_offset_y = target_point.y * self.scale
+            self.jump_to_search_offset(link_offset)
+            message_to_emacs("Landed on Page " + str(self.link_page_num))
         elif "uri" in link:
             self.cleanup_links()
 
@@ -1352,6 +1362,9 @@ class PdfViewerWidget(QWidget):
 
     def check_annot(self):
         ex, ey, page_index = self.get_cursor_absolute_position()    # type: ignore
+        if page_index is None or page_index >= self.document.page_count:
+            return
+
         page = self.document[page_index]
 
         annot, ok = page.can_update_annot(ex, ey)
@@ -1428,6 +1441,9 @@ class PdfViewerWidget(QWidget):
             return None
 
         ex, ey, page_index = self.get_cursor_absolute_position()
+        if page_index is None or page_index >= self.document.page_count:
+            return None
+
         page = self.document[page_index]
 
         is_hover_link = False
