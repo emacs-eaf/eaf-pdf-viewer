@@ -26,6 +26,8 @@ from core.utils import *
 import fitz
 import os
 import threading
+import faulthandler
+
 
 # hack: add current dir path to sys.path for relative path import other modules.
 import sys
@@ -64,6 +66,8 @@ class SynctexInfo():
 class AppBuffer(Buffer):
     def __init__(self, buffer_id, url, arguments):
         Buffer.__init__(self, buffer_id, url, arguments, False)
+
+        faulthandler.enable()
 
         (buffer_background_color, self.store_history, self.pdf_dark_mode) = get_emacs_vars([
              "eaf-buffer-background-color",
