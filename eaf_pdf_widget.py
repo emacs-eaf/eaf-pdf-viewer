@@ -1545,7 +1545,7 @@ class PdfViewerWidget(QWidget):
 
     def get_event_link(self):
         ex, ey, page_index = self.get_cursor_absolute_position()
-        if page_index is None:
+        if page_index is None or page_index >= self.document.page_count:
             return None
 
         page = self.document[page_index]
@@ -1558,7 +1558,7 @@ class PdfViewerWidget(QWidget):
 
     def get_double_click_word(self):
         ex, ey, page_index = self.get_cursor_absolute_position()
-        if page_index is None:
+        if page_index is None or page_index >= self.document.page_count:
             return None
         page = self.document[page_index]
         word_offset = 10 # 10 pixel is enough for word intersect operation
@@ -1671,8 +1671,9 @@ class PdfViewerWidget(QWidget):
         if self.is_popup_text_annot_mode:
             self.is_popup_text_annot_handler_waiting = False
             ex, ey, page_index = self.get_cursor_absolute_position()
+            if page_index is None or page_index >= self.document.page_count:
+                return
             self.popup_text_annot_pos = (fitz.Point(ex, ey), page_index)
-
             atomic_edit(self.buffer_id, "")
 
     def enable_inline_text_annot_mode(self):
@@ -1688,8 +1689,9 @@ class PdfViewerWidget(QWidget):
         if self.is_inline_text_annot_mode:
             self.is_inline_text_annot_handler_waiting = False
             ex, ey, page_index = self.get_cursor_absolute_position()
+            if page_index is None or page_index >= self.document.page_count:
+                return
             self.inline_text_annot_pos = (fitz.Point(ex, ey), page_index)
-
             atomic_edit(self.buffer_id, "")
 
     def enable_move_text_annot_mode(self):
@@ -1705,14 +1707,18 @@ class PdfViewerWidget(QWidget):
         if self.is_move_text_annot_mode:
             self.is_move_text_annot_handler_waiting = False
             ex, ey, page_index = self.get_cursor_absolute_position()
+            if page_index is None or page_index >= self.document.page_count:
+                return
             self.move_text_annot_pos = (fitz.Point(ex, ey), page_index)
             self.move_annot_text()
 
     def handle_select_mode(self):
         self.is_select_mode = True
         ex, ey, page_index = self.get_cursor_absolute_position()
+        if page_index is None or page_index >= self.document.page_count:
+            return
         rect_index = self.document[page_index].get_page_char_rect_index(ex, ey)
-        if rect_index and page_index is not None:
+        if rect_index:
             if self.start_char_rect_index is None or self.start_char_page_index is None:
                 self.start_char_rect_index, self.start_char_page_index = rect_index, page_index
             else:
@@ -1731,8 +1737,9 @@ class PdfViewerWidget(QWidget):
 
     def handle_synctex_backward_edit(self):
         ex, ey, page_index = self.get_cursor_absolute_position()
-        if page_index is not None:
-            eval_in_emacs("eaf-pdf-synctex-backward-edit", [self.url, page_index + 1, ex, ey])
+        if page_index is None or page_index >= self.document.page_count:
+            return
+        eval_in_emacs("eaf-pdf-synctex-backward-edit", [self.url, page_index + 1, ex, ey])
 
     def edit_outline_confirm(self, payload):
         self.document.set_toc(payload)
