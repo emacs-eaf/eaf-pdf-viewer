@@ -108,6 +108,8 @@ class PdfViewerWidget(QWidget):
 
         #jump link
         self.is_jump_link = False
+        self.link_page_num = None
+        self.link_page_offset_y = None
         self.jump_link_key_cache_dict = {}
 
         # hover link
