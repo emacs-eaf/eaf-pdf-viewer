@@ -444,3 +444,7 @@ class AppBuffer(Buffer):
 
     def edit_outline_confirm(self, payload):
         self.buffer_widget.edit_outline_confirm(payload)
+
+    def resize_view(self):
+        (_, _, width, height) = get_emacs_func_result("eaf-get-window-size-by-buffer-id", [self.buffer_id])
+        self.buffer_widget.resize(width, height)
