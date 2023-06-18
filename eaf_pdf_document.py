@@ -18,11 +18,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from core.utils import (message_to_emacs, get_emacs_vars)
-import fitz
 import functools
 
+import fitz
+from core.utils import get_emacs_vars, message_to_emacs
 from eaf_pdf_page import PdfPage
+
 
 def get_page_crop_box(page):
     if hasattr(page, "page_cropbox"):

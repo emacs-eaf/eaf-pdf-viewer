@@ -36,8 +36,8 @@ def convert_hex_to_qcolor(color, inverted=False):
     return col
 
 def generate_random_key(count, letters):
-    import random
     import math
+    import random
 
     key_list = []
     key_len = 1 if count == 1 else math.ceil(math.log(count) / math.log(len(letters)))

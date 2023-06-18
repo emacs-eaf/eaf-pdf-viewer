@@ -19,19 +19,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from PyQt6.QtCore import Qt, QRect, QPoint, QEvent, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QCursor
-from PyQt6.QtGui import QPainter, QPalette
-from PyQt6.QtWidgets import QWidget, QApplication, QToolTip
-from core.utils import *
-import fitz
-import time
 import math
+import time
 import webbrowser
 
+import fitz
+from core.utils import *
+from eaf_pdf_annot import AnnotAction
 from eaf_pdf_document import PdfDocument
 from eaf_pdf_utils import support_hit_max
-from eaf_pdf_annot import AnnotAction
+from PyQt6.QtCore import QEvent, QPoint, QRect, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QColor, QCursor, QFont, QPainter, QPalette
+from PyQt6.QtWidgets import QApplication, QToolTip, QWidget
+
 
 def set_page_crop_box(page):
     if hasattr(page, "set_cropbox"):

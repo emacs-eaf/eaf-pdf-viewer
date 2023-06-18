@@ -19,6 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fitz
+
+
 class AnnotAction():
     def __init__(self, page_index):
         self.page_index = page_index

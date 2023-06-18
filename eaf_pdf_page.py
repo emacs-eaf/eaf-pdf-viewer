@@ -19,14 +19,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from PyQt6.QtCore import QRect, QRectF
-from PyQt6.QtGui import QColor, QPixmap, QImage, QCursor
-from PyQt6.QtGui import QPainter
-from PyQt6.QtWidgets import QToolTip
-from core.utils import (get_emacs_vars)
 import fitz
-
+from core.utils import get_emacs_vars
 from eaf_pdf_utils import generate_random_key, support_hit_max
+from PyQt6.QtCore import QRect, QRectF
+from PyQt6.QtGui import QColor, QCursor, QImage, QPainter, QPixmap
+from PyQt6.QtWidgets import QToolTip
+
 
 def set_page_crop_box(page):
     if hasattr(page, "set_cropbox"):
