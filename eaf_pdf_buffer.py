@@ -445,3 +445,5 @@ class AppBuffer(Buffer):
     def edit_outline_confirm(self, payload):
         self.buffer_widget.edit_outline_confirm(payload)
 
+    def get_progress(self):
+        return self.buffer_widget.get_page_progress()

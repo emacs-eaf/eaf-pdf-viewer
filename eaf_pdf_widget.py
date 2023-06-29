@@ -186,7 +186,8 @@ class PdfViewerWidget(QWidget):
         self.page_annotate_padding_y = 10
 
         self.font = QFont()    # type: ignore
-        self.font.setPointSize(24)
+        self.font_size = 24
+        self.font.setPointSize(self.font_size)
 
         # Page cache.
         self.page_cache_pixmap_dict = {}
@@ -646,17 +647,25 @@ class PdfViewerWidget(QWidget):
         # Draw progress on page.
         show_progress_on_page, = get_emacs_vars(["eaf-pdf-show-progress-on-page"])
         if show_progress_on_page:
-            progress_percent = int(self.current_page_index * 100 / self.page_total_number)
             progress_rect = QRect(int(self.page_render_x + self.page_annotate_padding_x),
                                   int(self.rect().y() + self.page_annotate_padding_y),
                                   int(self.page_render_width - self.page_annotate_padding_x * 2),
                                   int(self.rect().height() - self.page_annotate_padding_y * 2))
 
+
+            scaling_ratio = self.page_render_width / self.rect().width()
+            progress_font_size = max(int(self.font_size * (1 - math.cos(scaling_ratio * math.pi)) / 2), 0.1)
+            painter.setFont(QFont(self.font.family(), progress_font_size))
             painter.drawText(progress_rect,
                              Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
-                             "{}% ( {}/{} )".format(progress_percent,
-                                                    self.current_page_index,
-                                                    self.page_total_number))
+                             self.get_page_progress())
+
+    def get_page_progress(self):
+        progress_percent = int(self.current_page_index * 100 / self.page_total_number)
+
+        return "{}% [{}/{}]".format(progress_percent,
+                                      self.current_page_index,
+                                      self.page_total_number)
 
     def build_context_wrap(f):    # type: ignore
         def wrapper(*args):
