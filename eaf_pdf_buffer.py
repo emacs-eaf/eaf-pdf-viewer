@@ -133,6 +133,7 @@ class AppBuffer(Buffer):
     def get_table_file(self):
         return self.buffer_widget.table_file_path
 
+    @PostGui()
     def handle_input_response(self, callback_tag, result_content):
         if callback_tag == "jump_page":
             self.buffer_widget.jump_to_page(int(result_content))
@@ -143,10 +144,12 @@ class AppBuffer(Buffer):
         elif callback_tag == "search_text":
             self.buffer_widget.search_text(str(result_content))
 
+    @PostGui()
     def cancel_input_response(self, callback_tag):
         if callback_tag == "jump_link":
             self.buffer_widget.cleanup_links()
 
+    @PostGui()
     def handle_search_forward(self, callback_tag):
         if callback_tag == "search_text":
             if self.buffer_widget.search_term != "":
@@ -156,6 +159,7 @@ class AppBuffer(Buffer):
             else:
                 message_to_emacs("Please enter a search string!", False, False)
 
+    @PostGui()
     def handle_search_backward(self, callback_tag):
         if callback_tag == "search_text":
             if self.buffer_widget.search_term != "":
@@ -165,10 +169,12 @@ class AppBuffer(Buffer):
             else:
                 message_to_emacs("Please enter a search string!", False, False)
 
+    @PostGui()
     def handle_search_finish(self, callback_tag):
         if callback_tag == "search_text":
             self.buffer_widget.cleanup_search()
 
+    @PostGui()
     def scroll_other_buffer(self, scroll_direction, scroll_type):
         if scroll_type == "page":
             if scroll_direction == "up":
@@ -240,6 +246,7 @@ class AppBuffer(Buffer):
         self.buffer_widget.add_mark_jump_link_tips()
         self.send_input_message("Jump to Link: ", "jump_link", "marker")
 
+    @PostGui()
     def action_quit(self):
         if self.buffer_widget.is_mark_search:
             self.buffer_widget.cleanup_search()
