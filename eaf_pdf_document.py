@@ -21,7 +21,7 @@
 import functools
 
 import fitz
-from core.utils import get_emacs_vars, message_to_emacs
+from core.utils import PostGui, get_emacs_vars, message_to_emacs
 from eaf_pdf_page import PdfPage
 
 
@@ -120,6 +120,7 @@ class PdfDocument(fitz.Document):
         self.file_changed_wacher.addPath(path)
         self.file_changed_wacher.fileChanged.connect(self.handle_file_changed)
 
+    @PostGui()
     def handle_file_changed(self, path):
         '''
         Use the QFileSystemWatcher watch file changed. If the watch file have been remove or rename,

@@ -1695,6 +1695,7 @@ class PdfViewerWidget(QWidget):
         self.is_popup_text_annot_mode = False
         self.is_popup_text_annot_handler_waiting = False
 
+    @PostGui()
     def handle_popup_text_annot_mode(self):
         if self.is_popup_text_annot_mode:
             self.is_popup_text_annot_handler_waiting = False
@@ -1713,6 +1714,7 @@ class PdfViewerWidget(QWidget):
         self.is_inline_text_annot_mode = False
         self.is_inline_text_annot_handler_waiting = False
 
+    @PostGui()
     def handle_inline_text_annot_mode(self):
         if self.is_inline_text_annot_mode:
             self.is_inline_text_annot_handler_waiting = False
@@ -1731,6 +1733,7 @@ class PdfViewerWidget(QWidget):
         self.is_move_text_annot_mode = False
         self.is_move_text_annot_handler_waiting = False
 
+    @PostGui()
     def handle_move_text_annot_mode(self):
         if self.is_move_text_annot_mode:
             self.is_move_text_annot_handler_waiting = False
