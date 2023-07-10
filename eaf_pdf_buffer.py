@@ -231,7 +231,8 @@ class AppBuffer(Buffer):
 
     def jump_to_page_synctex(self, info):
         self.buffer_widget.synctex_info.update(info)
-        self.buffer_widget.jump_to_page(self.buffer_widget.synctex_info.page_num)
+        synctex = self.buffer_widget.synctex_info
+        self.buffer_widget.jump_to_page(synctex.page_num, synctex.pos_y)
         self.buffer_widget.update()
         return ""
 
