@@ -109,6 +109,7 @@ class PdfViewerWidget(QWidget):
         #jump link
         self.is_jump_link = False
         self.link_page_num = None
+        self.link_page_offset_x = None
         self.link_page_offset_y = None
         self.jump_link_key_cache_dict = {}
 
@@ -571,11 +572,14 @@ class PdfViewerWidget(QWidget):
 
             # Draw an indicator for synctex position
             if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y is not None:
-                indicator_pos_y = int(self.page_render_y + self.synctex_info.pos_y * self.scale)
-                self.draw_arrow_indicator(painter, 15, indicator_pos_y)
+                pos_y = int(self.page_render_y + self.synctex_info.pos_y * self.scale)
+                self.draw_arrow_indicator(painter, 15, pos_y)
             elif self.link_page_num == index + 1 and self.link_page_offset_y is not None:
-                indicator_pos_y = int(self.page_render_y + self.link_page_offset_y)
-                self.draw_arrow_indicator(painter, 15, indicator_pos_y)
+                pos_x = int(self.page_render_x + self.link_page_offset_x)
+                pos_y = int(self.page_render_y + self.link_page_offset_y)
+                pos_x = max(0, pos_x - 30)
+                pos_y = pos_y + 12
+                self.draw_arrow_indicator(painter, pos_x, pos_y)
 
     def draw_scroll_page(self, painter, index):
         # Draw page padding.
@@ -621,9 +625,9 @@ class PdfViewerWidget(QWidget):
         from PyQt6.QtGui import QPolygon
 
         painter.save()
-        arrow = QPolygon([QPoint(x, y), QPoint(x+26, y), QPoint(x+26, y-5),
-                          QPoint(x+35, y+5),
-                          QPoint(x+26, y+15), QPoint(x+26, y+10), QPoint(x, y+10),
+        arrow = QPolygon([QPoint(x, y), QPoint(x+13, y), QPoint(x+13, y-4),
+                          QPoint(x+21, y+3),
+                          QPoint(x+13, y+10), QPoint(x+13, y+6), QPoint(x, y+6),
                           QPoint(x, y)])
         fill_color = QColor(236, 96, 31, 255)
         border_color = QColor(255, 91, 15, 255)
@@ -1035,8 +1039,9 @@ class PdfViewerWidget(QWidget):
             target_point = link["to"]
             link_offset = (link["page"] * self.page_height + target_point.y) * self.scale
             self.link_page_num = link["page"] + 1
+            self.link_page_offset_x = target_point.x * self.scale
             self.link_page_offset_y = target_point.y * self.scale
-            self.jump_to_search_offset(link_offset)
+            self.jump_to_offset(link_offset)
             message_to_emacs("Landed on Page " + str(self.link_page_num))
         elif "uri" in link:
             self.cleanup_links()
@@ -1053,16 +1058,6 @@ class PdfViewerWidget(QWidget):
         self.is_jump_link = False
         self.page_cache_pixmap_dict.clear()
         self.update()
-
-    def jump_to_search_offset(self, offset):
-        if (offset < self.scroll_offset + 0.05 * self.rect().height() or
-            offset > self.scroll_offset + 0.95 * self.rect().height()):
-            jump_offset = max(0, offset - 0.05 * self.rect().height())
-            max_offset = self.scale * self.page_total_number * self.page_height - self.rect().height()
-            if jump_offset < max_offset:
-                self.update_vertical_offset(jump_offset)
-            else:
-                self.update_vertical_offset(max_offset)
 
     def search_text(self, text):
         self.is_mark_search = True
@@ -1104,7 +1099,7 @@ class PdfViewerWidget(QWidget):
             self.is_mark_search = False
         else:
             try:
-                self.jump_to_search_offset(self.search_text_offset_list[self.search_text_index])
+                self.jump_to_offset(self.search_text_offset_list[self.search_text_index])
                 self.current_search_quads = self.search_text_quads_list[self.search_text_index]
                 self.page_cache_pixmap_dict.clear()
                 self.update()
@@ -1117,7 +1112,7 @@ class PdfViewerWidget(QWidget):
     def jump_next_match(self):
         if len(self.search_text_offset_list) > 0:
             self.search_text_index = (self.search_text_index + 1) % len(self.search_text_offset_list)
-            self.jump_to_search_offset(self.search_text_offset_list[self.search_text_index])
+            self.jump_to_offset(self.search_text_offset_list[self.search_text_index])
             message_to_emacs(str(self.search_text_index + 1) + "/" + str(len(self.search_text_offset_list)), False, False)
             self.current_search_quads = self.search_text_quads_list[self.search_text_index]
             self.page_cache_pixmap_dict.clear()
@@ -1126,7 +1121,7 @@ class PdfViewerWidget(QWidget):
     def jump_last_match(self):
         if len(self.search_text_offset_list) > 0:
             self.search_text_index = (self.search_text_index - 1) % len(self.search_text_offset_list)
-            self.jump_to_search_offset(self.search_text_offset_list[self.search_text_index])
+            self.jump_to_offset(self.search_text_offset_list[self.search_text_index])
             message_to_emacs(str(self.search_text_index + 1) + "/" + str(len(self.search_text_offset_list)), False, False)
             self.current_search_quads = self.search_text_quads_list[self.search_text_index]
             self.page_cache_pixmap_dict.clear()
@@ -1496,9 +1491,24 @@ class PdfViewerWidget(QWidget):
 
         return current_link
 
-    def jump_to_page(self, page_num):
+    def jump_to_page(self, page_num, pos_y=None):
         page_nume = int(page_num) - 1
-        self.update_vertical_offset(min(max(self.scale * page_nume * self.page_height, 0), self.max_scroll_offset()))
+        page_offset = max(self.scale * page_nume * self.page_height, 0)
+        if pos_y == None:
+            self.update_vertical_offset(min(page_offset, self.max_scroll_offset()))
+        else:
+            y_offset = self.scale * pos_y
+            self.jump_to_offset(page_offset + y_offset)
+
+    def jump_to_offset(self, offset):
+        if (offset < self.scroll_offset + 0.15 * self.rect().height() or
+            offset > self.scroll_offset + 0.85 * self.rect().height()):
+            jump_offset = max(0, offset - 0.15 * self.rect().height())
+            max_offset = self.scale * self.page_total_number * self.page_height - self.rect().height()
+            if jump_offset < max_offset:
+                self.update_vertical_offset(jump_offset)
+            else:
+                self.update_vertical_offset(max_offset)
 
     def jump_to_percent(self, percent):
         self.update_vertical_offset(min(max(self.scale * (self.page_total_number * self.page_height * percent / 100.0), 0), self.max_scroll_offset()))
