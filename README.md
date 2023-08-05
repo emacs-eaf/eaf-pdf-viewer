@@ -30,6 +30,15 @@ Double click the left button to edit backward.
   <img width="800" src="./latex_screenshot.gif">
 </p>
 
+### Translate current word
+Double click the right button to edit backward.
+
+You need re-implement `eaf-translate-text` yourself.
+
+<img width="1214" alt="SCR-20230805-ofva" src="https://github.com/emacs-eaf/eaf-pdf-viewer/assets/1028971/67a39c19-5a70-4804-9160-aedf1a56f3ee">
+
+The translation tool used in the screenshot is: [popweb](https://github.com/manateelazycat/popweb)
+
 ### Dark mode
 Default set background color to `emacs-background-color`
 
