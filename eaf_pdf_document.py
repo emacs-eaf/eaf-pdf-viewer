@@ -96,9 +96,9 @@ class PdfDocument(fitz.Document):
                 self.watch_callback(url)
             self.file_changed_timer.stop()
         except Exception:
-            self.file_changed_timer.start()
-            message_to_emacs("Failed to reload PDF file!")
-
+            if os.path.exists(url):
+                self.file_changed_timer.start()
+                message_to_emacs("Failed to reload PDF file: " + url)
 
     def cache_page(self, index, page):
         self._page_cache_dict[index] = page

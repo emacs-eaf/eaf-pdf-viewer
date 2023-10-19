@@ -241,7 +241,7 @@ class PdfViewerWidget(QWidget):
         try:
             self.document = PdfDocument(fitz.open(url))    # type: ignore
         except Exception:
-            message_to_emacs("Failed to load PDF file!")
+            message_to_emacs("Failed to load PDF file: " + url)
             return
 
         # recompute width, height, total number since the file might be modified
