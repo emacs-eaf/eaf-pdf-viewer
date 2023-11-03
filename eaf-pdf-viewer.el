@@ -294,7 +294,7 @@ Non-nil means don't invert images."
   (setq-local outline-regexp "\\( *\\).")
   (setq-local outline-level
               #'(lambda nil (1+ (/ (length (match-string 1))
-                                 eaf-pdf-outline-buffer-indent))))
+                               eaf-pdf-outline-buffer-indent))))
   (toggle-truncate-lines 1)
   (setq buffer-read-only t))
 
@@ -333,7 +333,7 @@ Non-nil means don't invert images."
       (erase-buffer)
       (insert toc)
       (setq toc (mapcar #'(lambda (line)
-                          (string-to-number (car (last (split-string line " ")))))
+                            (string-to-number (car (last (split-string line " ")))))
                         (butlast (split-string (buffer-string) "\n"))))
       (goto-line (seq-count (apply-partially #'>= page-number) toc))
       (let ((view-read-only nil))
@@ -397,8 +397,8 @@ Non-nil means don't invert images."
          (page-num (substring-no-properties (replace-regexp-in-string "\n" "" (car (last (s-split " " line)))))))
     ;; Jump to page.
     (eaf-call-async "execute_function_with_args"
-                   (buffer-local-value 'eaf--buffer-id eaf-pdf-outline-pdf-document)
-                   "jump_to_page_with_num" (format "%s" page-num))))
+                    (buffer-local-value 'eaf--buffer-id eaf-pdf-outline-pdf-document)
+                    "jump_to_page_with_num" (format "%s" page-num))))
 
 (defun eaf-pdf-outline-view-prev ()
   "View the specific page in the previous line."
@@ -540,12 +540,16 @@ This function works best if paired with a fuzzy search package."
          (history-file-exists (file-exists-p pdf-history-file-path))
          file-content)
     (when history-file-exists
-        (setq file-content (f-read-text pdf-history-file-path))
-        (dolist (each-file (split-string file-content "\n" t))
-          (unless (file-exists-p each-file)
-            (setq file-content (replace-regexp-in-string (rx--to-expr (format "%s\n"  each-file)) "" file-content))
-            (message "delete %s record from history" each-file)))
-        (f-write-text file-content 'utf-8 pdf-history-file-path))))
+      (setq file-content (with-temp-buffer
+                           (insert-file-contents pdf-history-file-path)
+                           (buffer-string)))
+      (dolist (each-file (split-string file-content "\n" t))
+        (unless (file-exists-p each-file)
+          (setq file-content (replace-regexp-in-string (rx--to-expr (format "%s\n"  each-file)) "" file-content))
+          (message "delete %s record from history" each-file)))
+      (with-temp-file pdf-history-file-path
+        (insert file-content))
+      )))
 
 (defun eaf-pdf-delete-pages (page-num)
   " Delete pdf pages
@@ -682,15 +686,15 @@ This function works best if paired with a fuzzy search package."
       ;; If the window is sole, then split window
       ;; Original `split-window-sensibly' conflict with `visual-fill-column'
       (if (fboundp 'visual-fill-column-split-window-sensibly)
-	  (visual-fill-column-split-window-sensibly)
-	(split-window-sensibly))
+	      (visual-fill-column-split-window-sensibly)
+	    (split-window-sensibly))
       (other-window 1))
 
     (if (not opened-buffer)
         (eaf-open pdf-url "pdf-viewer" (format "synctex_info=%s" synctex-info))
       (display-buffer opened-buffer)
       (eaf-call-sync "execute_function_with_args" eaf--buffer-id
-		     "jump_to_page_synctex" (format "%s" synctex-info)))))
+		             "jump_to_page_synctex" (format "%s" synctex-info)))))
 
 (defun eaf-pdf-synctex-backward-edit (pdf-file page-num x y)
   "Edit the Tex file corresponding to (`page-num', `x' , `y') of the `pdf-file'."
@@ -709,13 +713,13 @@ This function works best if paired with a fuzzy search package."
   (let* ((payload
           (org-element-map (org-element-parse-buffer) 'headline
             (lambda (headline) (let* ((raw-value (org-element-property :raw-value headline))
-                                      (level (org-element-property :level headline))
-                                      (page-num (and (string-match (rx (1+ num) string-end) raw-value) (match-string 0 raw-value)))
-                                      (title (format "%s" (string-trim-right raw-value page-num)))
-                                      )
-                                 (if page-num
-                                     (list level (string-trim-right title) (string-to-number page-num))
-                                   (error "Title: %s has no corresponding page number!" title)))) t))
+                                  (level (org-element-property :level headline))
+                                  (page-num (and (string-match (rx (1+ num) string-end) raw-value) (match-string 0 raw-value)))
+                                  (title (format "%s" (string-trim-right raw-value page-num)))
+                                  )
+                             (if page-num
+                                 (list level (string-trim-right title) (string-to-number page-num))
+                               (error "Title: %s has no corresponding page number!" title)))) t))
          )
     (eaf-call-async "execute_function_with_args" eaf--buffer-id "edit_outline_confirm" payload)))
 
