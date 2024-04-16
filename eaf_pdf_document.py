@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import functools
-
+import os
 import fitz
 from core.utils import PostGui, get_emacs_vars, message_to_emacs
 from eaf_pdf_page import PdfPage
