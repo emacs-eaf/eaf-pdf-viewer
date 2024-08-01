@@ -491,7 +491,9 @@ The key is the page_index."
 
 (defun eaf--pdf-update-position (buffer-id page-index page-total-number)
   "Format mode line position indicator to show the current page and the total pages."
-  (let ((buffer (eaf-get-buffer buffer-id)))
+  (let ((buffer (eaf-get-buffer buffer-id))
+        (page-index (number-to-string page-index))
+        (page-total-number (number-to-string page-total-number)))
     (when buffer
       (with-current-buffer buffer
         (let ((need-update
