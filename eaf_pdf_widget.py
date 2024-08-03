@@ -1235,8 +1235,11 @@ class PdfViewerWidget(QWidget):
     def compute_annot_rect_inline_text(self, point, fontsize, text):
         text_lines = text.splitlines()
         longest_line = max(text_lines, key=len)
+        len_eng = len(longest_line)
+        len_utf8 = len(longest_line.encode('utf-8'))
+        len_real = int((len_utf8 - len_eng) / 2 + len_eng)
         annot_rect = fitz.Rect(point,
-                               point.x + (fontsize / 1.5) * len(longest_line),
+                               point.x + (fontsize / 1.5) * len_real,
                                point.y + (fontsize * 1.3) * len(text_lines))
         return annot_rect
 
