@@ -333,6 +333,9 @@ class AppBuffer(Buffer):
     def add_annot_inline_text(self):
         self.buffer_widget.enable_inline_text_annot_mode()
 
+    def add_annot_rect(self):
+        self.buffer_widget.enable_rect_annot_mode()
+
     def edit_annot_text(self):
         if self.buffer_widget.is_select_mode:
             atomic_edit(self.buffer_id, "")

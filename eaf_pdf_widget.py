@@ -156,6 +156,11 @@ class PdfViewerWidget(QWidget):
         self.is_inline_text_annot_mode = False
         self.is_inline_text_annot_handler_waiting = False
         self.inline_text_annot_pos = (None, None)
+
+        self.is_rect_annot_mode = False
+        self.rect_annot_beg_ex = 0
+        self.rect_annot_beg_ey = 0
+
         # move text annot
         self.move_text_annot_timer = QTimer()
         self.move_text_annot_timer.setInterval(300)
@@ -1626,11 +1631,12 @@ class PdfViewerWidget(QWidget):
                 return False
 
         if event.type() == QEvent.Type.MouseMove:
-            if self.hasMouseTracking():
-                self.hover_link()
-                self.check_annot()
-            else:
-                self.handle_select_mode()
+            if not self.is_rect_annot_mode:
+                if self.hasMouseTracking():
+                    self.hover_link()
+                    self.check_annot()
+                else:
+                    self.handle_select_mode()
 
         elif event.type() == QEvent.Type.MouseButtonPress:
             # add this detect release mouse event
@@ -1649,6 +1655,11 @@ class PdfViewerWidget(QWidget):
             elif self.is_move_text_annot_mode:
                 if event.button() != Qt.MouseButton.LeftButton:
                     self.disable_move_text_annot_mode()
+            elif self.is_rect_annot_mode:
+                if event.button() != Qt.MouseButton.LeftButton:
+                    self.disable_rect_annot_mode()
+                else:
+                    self.handle_rect_annot_mode(True)
             else:
                 modifiers = QApplication.keyboardModifiers()
                 if event.button() == Qt.MouseButton.LeftButton:
@@ -1673,6 +1684,10 @@ class PdfViewerWidget(QWidget):
             # Capture move event, event without holding down the mouse.
             self.setMouseTracking(True)
             self.releaseMouse()
+
+            if self.is_rect_annot_mode:
+                self.handle_rect_annot_mode(False)
+
             if not self.popup_text_annot_timer.isActive() and \
                self.is_popup_text_annot_handler_waiting:
                 self.popup_text_annot_timer.start()
@@ -1737,6 +1752,39 @@ class PdfViewerWidget(QWidget):
                 return
             self.inline_text_annot_pos = (fitz.Point(ex, ey), page_index)
             atomic_edit(self.buffer_id, "")
+
+    def enable_rect_annot_mode(self):
+        self.is_rect_annot_mode = True
+
+    def disable_rect_annot_mode(self):
+        self.is_rect_annot_mode = False
+
+    def handle_rect_annot_mode(self, start_press):
+        if self.is_rect_annot_mode:
+            if start_press:
+                self.rect_annot_beg_ex, self.rect_annot_beg_ey, page_index = self.get_cursor_absolute_position()
+                if page_index is None or page_index >= self.document.page_count:
+                    return
+            else:
+                end_ex, end_ey, page_index = self.get_cursor_absolute_position()
+                if page_index is None or page_index >= self.document.page_count:
+                    return
+
+                page = self.document[page_index]
+                annot_rect = fitz.Rect(self.rect_annot_beg_ex, self.rect_annot_beg_ey, end_ex, end_ey)
+
+                if annot_rect.is_empty or annot_rect.is_infinite:
+                    return
+
+                new_annot = page.add_rect_annot(annot_rect)
+                new_annot.set_info(title=self.user_name)
+                new_annot.parent = page
+
+                annot_action = AnnotAction.create_annot_action("Add", page_index, new_annot)
+                self.record_new_annot_action(annot_action)
+
+                self.save_annot()
+                self.disable_rect_annot_mode()
 
     def enable_move_text_annot_mode(self):
         self.is_move_text_annot_mode = True
