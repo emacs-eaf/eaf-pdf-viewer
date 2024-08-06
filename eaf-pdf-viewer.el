@@ -732,7 +732,7 @@ This function works best if paired with a fuzzy search package."
     (eaf-call-async "execute_function_with_args" eaf--buffer-id "edit_outline_confirm" payload)))
 
 (defun eaf-pdf-extract-page-text ()
-  "Display an PDF outline of the current buffer."
+  "Display the text of current page in a new buffer."
   (interactive)
   (let ((page-text-buffer (get-buffer-create (format "*Page text: %s*" (buffer-name))))
         (page-text (eaf-call-sync "execute_function" eaf--buffer-id "get_page_text")))
