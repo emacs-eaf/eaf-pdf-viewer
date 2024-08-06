@@ -306,6 +306,11 @@ class AppBuffer(Buffer):
     def current_page(self):
         return str(self.buffer_widget.start_page_index + 1)
 
+    def get_page_text(self):
+        page_index = self.buffer_widget.current_page_index - 1
+        page = self.buffer_widget.document[page_index]
+        return page.get_text()
+
     def current_percent(self):
         return str(self.buffer_widget.current_percent())
 

@@ -731,6 +731,18 @@ This function works best if paired with a fuzzy search package."
          )
     (eaf-call-async "execute_function_with_args" eaf--buffer-id "edit_outline_confirm" payload)))
 
+(defun eaf-pdf-extract-page-text ()
+  "Display an PDF outline of the current buffer."
+  (interactive)
+  (let ((page-text-buffer (get-buffer-create (format "*Page text: %s*" (buffer-name))))
+        (page-text (eaf-call-sync "execute_function" eaf--buffer-id "get_page_text")))
+    (unless (string-empty-p page-text)
+      (with-current-buffer page-text-buffer
+        (erase-buffer)
+        (insert page-text)
+        (goto-char (point-min)))
+      (switch-to-buffer-other-window page-text-buffer))))
+
 ;;;; Register as module for EAF
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))
 
