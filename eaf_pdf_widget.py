@@ -977,6 +977,8 @@ class PdfViewerWidget(QWidget):
                                               fontsize=self.inline_text_annot_fontsize,
                                               fontname="Arial",
                                               text_color=text_color, align=0)
+        elif (annot_action.annot_type == fitz.PDF_ANNOT_SQUARE):
+            new_annot = page.add_rect_annot(annot_action.annot_rect)
 
         if new_annot:
             new_annot.set_info(title=annot_action.annot_title)
