@@ -354,6 +354,22 @@ class AppBuffer(Buffer):
             message_to_emacs("Move text annot: left-click mouse to choose a target position.")
             self.buffer_widget.annot_handler("move")
 
+    def edit_annot_by_id(self, page_index, annot_id):
+        page = self.buffer_widget.document[int(page_index)]
+        annot = self.buffer_widget.find_annot_by_id(page, annot_id)
+        self.buffer_widget.annot_handler("edit", annot)
+
+    def move_annot_by_id(self, page_index, annot_id):
+        message_to_emacs("Move text annot: left-click mouse to choose a target position.")
+        page = self.buffer_widget.document[int(page_index)]
+        annot = self.buffer_widget.find_annot_by_id(page, annot_id)
+        self.buffer_widget.annot_handler("move", annot)
+
+    def delete_annot_by_id(self, page_index, annot_id):
+        page = self.buffer_widget.document[int(page_index)]
+        annot = self.buffer_widget.find_annot_by_id(page, annot_id)
+        self.buffer_widget.annot_handler("delete", annot)
+
     def set_focus_text(self, new_text):
         import base64
         new_text = base64.b64decode(new_text).decode("utf-8")
