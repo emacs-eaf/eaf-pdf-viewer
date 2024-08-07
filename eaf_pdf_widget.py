@@ -258,7 +258,10 @@ class PdfViewerWidget(QWidget):
         # Register file watcher, when document is change, re-calling this function.
         self.document.watch_file(url, self.load_document)
 
-        self.update()
+        try:
+            self.update()
+        except Exception:
+            pass
 
     def is_buffer_focused(self):
         # This check is slow, use only when necessary
