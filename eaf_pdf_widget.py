@@ -974,6 +974,8 @@ class PdfViewerWidget(QWidget):
                                               fontsize=self.inline_text_annot_fontsize,
                                               fontname="Arial",
                                               text_color=text_color, align=0)
+        elif (annot_action.annot_type == fitz.PDF_ANNOT_SQUARE):
+            new_annot = page.add_rect_annot(annot_action.annot_rect)
 
         if new_annot:
             new_annot.set_info(title=annot_action.annot_title)
@@ -1398,10 +1400,10 @@ class PdfViewerWidget(QWidget):
         self.page_cache_pixmap_dict.clear()
         self.update()
 
-    def annot_handler(self, action=None):
-        if self.hovered_annot is None:
+    def annot_handler(self, action=None, annot=None):
+        annot = annot or self.hovered_annot
+        if annot is None:
             return
-        annot = self.hovered_annot
         if annot.parent:
             if action == "delete":
                 annot_action = AnnotAction.create_annot_action("Delete", annot.parent.number, annot)

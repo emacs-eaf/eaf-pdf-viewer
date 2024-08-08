@@ -306,6 +306,11 @@ class AppBuffer(Buffer):
     def current_page(self):
         return str(self.buffer_widget.start_page_index + 1)
 
+    def get_page_text(self):
+        page_index = self.buffer_widget.current_page_index - 1
+        page = self.buffer_widget.document[page_index]
+        return page.get_text()
+
     def current_percent(self):
         return str(self.buffer_widget.current_percent())
 
@@ -348,6 +353,22 @@ class AppBuffer(Buffer):
         elif self.buffer_widget.is_hover_annot:
             message_to_emacs("Move text annot: left-click mouse to choose a target position.")
             self.buffer_widget.annot_handler("move")
+
+    def edit_annot_by_id(self, page_index, annot_id):
+        page = self.buffer_widget.document[int(page_index)]
+        annot = self.buffer_widget.find_annot_by_id(page, annot_id)
+        self.buffer_widget.annot_handler("edit", annot)
+
+    def move_annot_by_id(self, page_index, annot_id):
+        message_to_emacs("Move text annot: left-click mouse to choose a target position.")
+        page = self.buffer_widget.document[int(page_index)]
+        annot = self.buffer_widget.find_annot_by_id(page, annot_id)
+        self.buffer_widget.annot_handler("move", annot)
+
+    def delete_annot_by_id(self, page_index, annot_id):
+        page = self.buffer_widget.document[int(page_index)]
+        annot = self.buffer_widget.find_annot_by_id(page, annot_id)
+        self.buffer_widget.annot_handler("delete", annot)
 
     def set_focus_text(self, new_text):
         import base64
