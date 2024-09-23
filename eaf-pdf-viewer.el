@@ -88,7 +88,7 @@
   :type 'boolean
   :group 'eaf-pdf-viewer)
 
-(defcustom eaf-pdf-dark-mode "follow"
+(defcustom eaf-pdf-dark-mode "ignore"
   "Whether to enable inverted color rendering when starting the pdf-viewer app.
 
 Possible values are
