@@ -1044,10 +1044,11 @@ class PdfViewerWidget(QWidget):
             self.save_current_pos()
 
             target_point = link["to"]
-            link_offset = (link["page"] * self.page_height + target_point.y) * self.scale
+            offset_y_from_top = self.page_height - target_point.y
+            link_offset = (link["page"] * self.page_height + offset_y_from_top) * self.scale
             self.link_page_num = link["page"] + 1
             self.link_page_offset_x = target_point.x * self.scale
-            self.link_page_offset_y = target_point.y * self.scale
+            self.link_page_offset_y = offset_y_from_top * self.scale
             self.jump_to_offset(link_offset)
             message_to_emacs("Landed on Page " + str(self.link_page_num))
         elif "uri" in link:
