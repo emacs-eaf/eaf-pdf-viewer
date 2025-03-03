@@ -743,6 +743,99 @@ This function works best if paired with a fuzzy search package."
         (goto-char (point-min)))
       (switch-to-buffer-other-window page-text-buffer))))
 
+(defun eaf-pdf-rebuild-full-text-cache ()
+  (interactive)
+  (eaf-call-async
+   "execute_function_with_args" eaf--buffer-id "cache_reverse_index" 't))
+
+;; pdf narrow
+(defun eaf-pdf-narrow--begin (eaf-buffer-id) 
+  "prepared to search"
+  (let ((current-page-file-name
+         (eaf-call-sync "execute_function_with_args"
+                        eaf-buffer-id
+                        "narrow_search_protocol" "" -3 0) ))
+    current-page-file-name))
+
+(defun eaf-pdf-narrow--done (eaf-buffer-id) 
+  (eaf-call-sync "execute_function_with_args"
+                 eaf-buffer-id
+                 "narrow_search_protocol" "" -2 0))
+
+(defun eaf-pdf-narrow--quit (eaf-buffer-id) 
+  (eaf-call-sync "execute_function_with_args"
+                 eaf-buffer-id
+                 "narrow_search_protocol" "" -1 0))
+
+(defvar eaf-pdf-narrow--last-input
+  "the last search input")
+
+(defun eaf-pdf-narrow--update (eaf-buffer-id input selection index candidates)
+  "Update the selected candidates"
+  (setq eaf-pdf-narrow--last-input input)
+  (when candidates
+    (let* ((split-selection (split-string selection ": "))
+           (current-page (string-to-number (car split-selection))) ;; get page
+           ;; Length of the page number
+           (text-start (1+ (length (car split-selection))))
+           ;; Extract text without page number
+           (line (substring
+                  selection text-start (length selection)))
+           (id-target (list index selection))
+           (ids-cands 
+            (cl-loop for cand in candidates
+                     for idx from 0 collect (list idx cand)))
+           (same-number-candidates
+            ;; same cands in the same page
+            (cl-remove-if-not
+             (lambda (cand)
+               (string-match-p (cadr id-target) (cadr cand)))
+             ids-cands))
+           ;; index of current selected word in the page
+           (current-index (cl-position id-target same-number-candidates :test 'equal)))
+      (eaf-call-async "execute_function_with_args" eaf-buffer-id "narrow_search_protocol" line current-page (or current-index 0)))))
+
+(defun eaf-pdf-narrow--ivy (cache-file-name eaf-buffer-id &optional current-page) 
+  (let* ((candidates (split-string
+                      (with-temp-buffer
+                        (set-buffer-multibyte t)
+                        (insert-file-contents-literally cache-file-name)
+                        (decode-coding-region (point-min) (point-max) 'utf-8)
+                        (buffer-string)) "\n" t)))
+    (ivy-read
+     "Narrow Search: "
+     candidates
+     :update-fn (lambda ()
+                  (eaf-pdf-narrow--update 
+                   eaf-buffer-id
+                   ivy-text
+                   (ivy-state-current ivy-last)
+                   ivy--index ivy--old-cands))
+     :require-match t
+     :preselect current-page
+     :action (lambda (selection) (eaf-pdf-narrow--done eaf-buffer-id))
+     :unwind (lambda () (unless ivy-exit (eaf-pdf-narrow--quit eaf-buffer-id)))
+     :caller 'eaf-pdf-narrow--ivy)))
+
+(defun eaf-pdf-narrow-search ()
+  "search text/line in pdf"
+  (interactive)
+  (let* ((eaf-buffer-id eaf--buffer-id)
+         (current-page-file-name (eaf-pdf-narrow--begin eaf-buffer-id))
+         (current-page (car (split-string current-page-file-name)))
+         (start (1+ (length current-page)))
+         (n (length current-page-file-name))
+         (cache-file-name (substring current-page-file-name start n)))
+    (if (not (file-exists-p cache-file-name))
+        (message "Building %s ... or execute `eaf-pdf-rebuild-full-text-cache` to rebuild this cache file"
+                 cache-file-name)
+      (cond
+       ((require 'ivy nil 'noerror)
+        ;; ivy style search
+        (eaf-pdf-narrow--ivy cache-file-name eaf-buffer-id current-page))
+       (t
+        (eaf-call-async "execute_function" eaf-buffer-id "search_text_forward" ))))))
+
 ;;;; Register as module for EAF
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))
 
