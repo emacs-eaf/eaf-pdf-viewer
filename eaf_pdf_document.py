@@ -162,3 +162,12 @@ class PdfDocument(fitz.Document):
 
     def watch_page_size_change(self, callback):
         self._document_page_change = callback
+
+    def build_reverse_index(self):
+        self.text_list = []
+        for i, page in enumerate(self):
+            text = page.get_text()
+            for line in text.split("\n"):
+                self.text_list.append(f"{i + 1}: {line}")
+        return "\n".join(self.text_list)
+            

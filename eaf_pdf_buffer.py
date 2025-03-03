@@ -79,6 +79,9 @@ class AppBuffer(Buffer):
         # Use thread to avoid slow down open speed.
         threading.Thread(target=self.record_open_history).start()
 
+        # Use thread to cache all text in pdf.
+        threading.Thread(target=self.cache_reverse_index).start()
+
         self.build_all_methods(self.buffer_widget)
 
         # Convert title if pdf is converted from office file.
@@ -121,6 +124,25 @@ class AppBuffer(Buffer):
                 for line in lines:
                     f.write(line)
                     f.write("\n")
+
+    def cache_reverse_index(self, force=False):
+        """
+        Cache all text in pdf to speed up search.
+        """
+        # get file name from self.url
+        file_name = os.path.basename(self.url)
+        cache_file_name = os.path.join(get_emacs_config_dir(), "pdf", "cache", file_name + ".txt")
+        self.cache_file_name = cache_file_name
+        txt_modified_time = os.path.getmtime(cache_file_name) if os.path.exists(cache_file_name) else 0
+        pdf_modified_time = os.path.getmtime(self.url)
+        if not force and pdf_modified_time <= txt_modified_time:
+            return
+        if not os.path.exists(cache_file_name):
+            os.makedirs(os.path.dirname(cache_file_name), exist_ok=True)
+        # get all text from pdf
+        text = self.buffer_widget.build_reverse_index()
+        with open(cache_file_name, "w", encoding="utf-8") as f:
+            f.write(text)
 
     def destroy_buffer(self):
         if self.delete_temp_file:
@@ -255,6 +277,25 @@ class AppBuffer(Buffer):
             self.buffer_widget.cleanup_links()
         if self.buffer_widget.is_select_mode:
             self.buffer_widget.cleanup_select()
+
+    def narrow_search_protocol(self, search_term="", pages=None, index=None):
+        if pages == -3: # -3 as search begin signal
+            self.percentage_before_search = self.current_percent()
+            # return page num and search target file path
+            return f"{self.buffer_widget.start_page_index + 1} {self.cache_file_name}"
+        elif pages == -2: # -2 : jump to target page
+            self.buffer_widget.search_text("", pages, index) # cleanup highligts
+            self.buffer_widget.cleanup_search()  # search done
+        elif pages == -1: # -1 as search quit signal
+            if hasattr(self, "percentage_before_search"):
+                # jump back to the page before search
+                self.buffer_widget.jump_to_percent(float(self.percentage_before_search))
+            self.buffer_widget.search_text("", pages, index) # cleanup highligts
+            self.buffer_widget.cleanup_search()
+        elif search_term == "":
+            return  # at least one char for search
+        else:
+            self.buffer_widget.search_text(search_term, pages-1, index)
 
     def search_text_forward(self):
         self.buffer_widget.search_mode_forward = True

@@ -126,6 +126,7 @@ class PdfViewerWidget(QWidget):
         self.search_text_offset_list = []
         self.current_search_quads = None
         self.search_text_quads_list = []
+        self.search_page_history = set()
 
         # select text
         self.is_select_mode = False
@@ -1067,8 +1068,30 @@ class PdfViewerWidget(QWidget):
         self.page_cache_pixmap_dict.clear()
         self.update()
 
-    def search_text(self, text):
+    def _search_in_pages(self, text, page_list):
+        for page_index in page_list:
+            # Search from the current page
+            page = self.document[page_index]
+            if page_index < self.current_page_index:
+                self.search_text_index = len(self.search_text_quads_list)
+            
+            if support_hit_max:
+                quads_list = self.document.search_page_for(page_index, text, hit_max=999, quads=True)
+            else:
+                quads_list = self.document.search_page_for(page_index, text, quads=True)
+            if quads_list:
+                for index, quad in enumerate(quads_list):
+                    search_text_offset = (page_index * self.page_height + quad.ul.y) * self.scale
+                    self.search_text_offset_list.append(search_text_offset)
+                    self.search_text_quads_list.append(quad)
+                self.search_page_history.add(page)
+        return quads_list
+
+
+    def search_text(self, text, page_num = None, page_offset=-1):
         self.is_mark_search = True
+        if page_num is not None: # clear spaces and soft hyphen in the line
+            text = text.strip(" -")
         self.search_term = text
         self.last_search_term = text
         self.page_cache_pixmap_dict.clear()
@@ -1076,44 +1099,36 @@ class PdfViewerWidget(QWidget):
         self.search_text_quads_list.clear()
 
         if self.search_term == "":
-            for page_index in range(self.page_total_number):
-                page = self.document[page_index]
+            for page in self.search_page_history:
                 page.cleanup_search_text()
             self.page_cache_pixmap_dict.clear()
+            self.search_page_history.clear()
             self.update()
             return
 
         self.search_text_index = 0
 
-        for page_index in range(self.page_total_number):
-            # Search from the current page
-            page = self.document[page_index]
-            if page_index < self.current_page_index:
-                self.search_text_index = len(self.search_text_quads_list)
-
-            if support_hit_max:
-                quads_list = self.document.search_page_for(page_index, text, hit_max=999, quads=True)
-            else:
-                quads_list = self.document.search_page_for(page_index, text, quads=True)
-
-            if quads_list:
-                for index, quad in enumerate(quads_list):
-                    search_text_offset = (page_index * self.page_height + quad.ul.y) * self.scale
-                    self.search_text_offset_list.append(search_text_offset)
-                    self.search_text_quads_list.append(quad)
+        page_list = [page_num] if page_num is not None else range(self.page_total_number)
+        self._search_in_pages(self.search_term, page_list)
 
         if(len(self.search_text_offset_list) == 0):
-            message_to_emacs("No results found with \"" + text + "\".")
+            message_to_emacs("No results found with \"" + self.search_term + "\".")
             self.is_mark_search = False
         else:
             try:
-                self.jump_to_offset(self.search_text_offset_list[self.search_text_index])
-                self.current_search_quads = self.search_text_quads_list[self.search_text_index]
+                idx = page_offset if page_offset != -1 else self.search_text_index
+                self.jump_to_offset(self.search_text_offset_list[idx])
+                self.current_search_quads = self.search_text_quads_list[idx]
                 self.page_cache_pixmap_dict.clear()
                 self.update()
-                self.update_vertical_offset(self.search_text_offset_list[self.search_text_index])    # type: ignore
-            except Exception:
-                message_to_emacs("Unexpected error while searching: " + text)
+                vertical_offset = self.search_text_offset_list[idx]
+                if page_num is not None: # if search line ,move highlight to center
+                    vertical_offset -= self.page_height // 4
+                self.update_vertical_offset(vertical_offset)    # type: ignore
+            except Exception as e: # more debug info
+                print(e, idx, self.search_text_offset_list)
+                print(page_offset, self.search_text_index)
+                message_to_emacs("Unexpected error while searching: " + self.search_term)
                 self.is_mark_search = False
 
 
@@ -1841,3 +1856,6 @@ class PdfViewerWidget(QWidget):
         self.document.set_toc(payload)
         self.document.saveIncr()
         message_to_emacs("Updated PDF Table of Contents successfully.")
+
+    def build_reverse_index(self):
+        return self.document.build_reverse_index()
