@@ -1090,8 +1090,8 @@ class PdfViewerWidget(QWidget):
 
     def search_text(self, text, page_num = None, page_offset=-1):
         self.is_mark_search = True
-        if page_num is not None: # clear spaces and soft hyphen in the line
-            text = text.strip(" -")
+        if page_num is not None: # clear soft hyphen in the line
+            text = text.strip("-")
         self.search_term = text
         self.last_search_term = text
         self.page_cache_pixmap_dict.clear()

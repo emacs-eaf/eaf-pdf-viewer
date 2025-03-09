@@ -789,7 +789,7 @@ This function works best if paired with a fuzzy search package."
             ;; same cands in the same page
             (cl-remove-if-not
              (lambda (cand)
-               (string-match-p (cadr id-target) (cadr cand)))
+               (string= (cadr id-target) (cadr cand)))
              ids-cands))
            ;; index of current selected word in the page
            (current-index (cl-position id-target same-number-candidates :test 'equal)))
@@ -813,7 +813,7 @@ This function works best if paired with a fuzzy search package."
                        (ivy-state-current ivy-last)
                        ivy--index ivy--old-cands))
          :require-match t
-         :preselect current-page
+         :preselect (format "%s:" current-page)
          :action (lambda (selection) (eaf-pdf-narrow--done eaf-buffer-id))
          :unwind (lambda () (unless ivy-exit (eaf-pdf-narrow--quit eaf-buffer-id)))
          :caller 'eaf-pdf-narrow--ivy)
