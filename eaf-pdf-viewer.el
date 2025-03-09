@@ -350,21 +350,25 @@ Non-nil means don't invert images."
          (buffer-id (buffer-local-value 'eaf--buffer-id (get-buffer pdf-buffer)))
          (toc (eaf-call-sync "execute_function" buffer-id "get_toc_to_edit"))
          (page-number (string-to-number (or (eaf-call-sync "execute_function" eaf--buffer-id "current_page") "1")))
-         (outline-edit-buffer (generate-new-buffer (eaf-pdf-outline-edit-buffer-name))))
-
-    (with-current-buffer outline-edit-buffer
-      (setq buffer-read-only nil)
-      (erase-buffer)
-      (insert toc)
-      (setq toc (mapcar #'(lambda (line)
-                            (string-to-number (car (last (split-string line " ")))))
-                        (butlast (split-string (buffer-string) "\n"))))
-      (goto-line (seq-count (apply-partially #'>= page-number) toc))
-      (eaf-pdf-outline-edit-mode)
-      (set (make-local-variable 'eaf--buffer-id) buffer-id)
-      )
-
-    (pop-to-buffer outline-edit-buffer)))
+         (outline-edit-buffer-name (eaf-pdf-outline-edit-buffer-name)))
+    
+    ;; if buffer-name is already in use, just split the window and use the existing buffer
+    (if (get-buffer outline-edit-buffer-name)
+        (switch-to-buffer-other-window outline-edit-buffer-name)
+      (let ((outline-edit-buffer (generate-new-buffer outline-edit-buffer-name)))
+        ;; Insert outline content.
+      (with-current-buffer outline-edit-buffer
+        (setq buffer-read-only nil)
+        (erase-buffer)
+        (insert toc)
+        (setq toc (mapcar #'(lambda (line)
+                              (string-to-number (car (last (split-string line " ")))))
+                          (butlast (split-string (buffer-string) "\n"))))
+        (goto-line (seq-count (apply-partially #'>= page-number) toc))
+        (eaf-pdf-outline-edit-mode)
+        (set (make-local-variable 'eaf--buffer-id) buffer-id)
+        )
+        (pop-to-buffer outline-edit-buffer)))))
 
 (defun eaf-pdf-outline-jump ()
   "Jump into specific page."
