@@ -168,6 +168,9 @@ class PdfDocument(fitz.Document):
         for i, page in enumerate(self):
             text = page.get_text()
             for line in text.split("\n"):
-                self.text_list.append(f"{i + 1}: {line}")
+                # more than 1 char
+                line = line.strip()
+                if len(line) > 1:
+                    self.text_list.append(f"{i + 1}: {line}")
         return "\n".join(self.text_list)
             
