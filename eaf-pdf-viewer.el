@@ -802,20 +802,22 @@ This function works best if paired with a fuzzy search package."
                         (insert-file-contents-literally cache-file-name)
                         (decode-coding-region (point-min) (point-max) 'utf-8)
                         (buffer-string)) "\n" t)))
-    (ivy-read
-     "Narrow Search: "
-     candidates
-     :update-fn (lambda ()
-                  (eaf-pdf-narrow--update 
-                   eaf-buffer-id
-                   ivy-text
-                   (ivy-state-current ivy-last)
-                   ivy--index ivy--old-cands))
-     :require-match t
-     :preselect current-page
-     :action (lambda (selection) (eaf-pdf-narrow--done eaf-buffer-id))
-     :unwind (lambda () (unless ivy-exit (eaf-pdf-narrow--quit eaf-buffer-id)))
-     :caller 'eaf-pdf-narrow--ivy)))
+    (if (require 'ivy nil t)
+        (ivy-read
+         "Narrow Search: "
+         candidates
+         :update-fn (lambda ()
+                      (eaf-pdf-narrow--update
+                       eaf-buffer-id
+                       ivy-text
+                       (ivy-state-current ivy-last)
+                       ivy--index ivy--old-cands))
+         :require-match t
+         :preselect current-page
+         :action (lambda (selection) (eaf-pdf-narrow--done eaf-buffer-id))
+         :unwind (lambda () (unless ivy-exit (eaf-pdf-narrow--quit eaf-buffer-id)))
+         :caller 'eaf-pdf-narrow--ivy)
+      (message "Please install ivy first."))))
 
 (defun eaf-pdf-narrow-search ()
   "search text/line in pdf"
