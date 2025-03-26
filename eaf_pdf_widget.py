@@ -1087,11 +1087,20 @@ class PdfViewerWidget(QWidget):
                 self.search_page_history.add(page)
         return quads_list
 
+    def search_in_epub(self, page_num=None):
+        if page_num is not None and page_num >= 0:
+            self.jump_to_page(page_num+1)
+        else:
+            return # done
 
     def search_text(self, text, page_num = None, page_offset=-1):
+        if not self.document.is_pdf: # epub
+            self.search_in_epub(page_num)
+            return 
+            
         self.is_mark_search = True
         if page_num is not None: # clear soft hyphen in the line
-            text = text.strip("-")
+            text = text.strip(" -‐")
         self.search_term = text
         self.last_search_term = text
         self.page_cache_pixmap_dict.clear()

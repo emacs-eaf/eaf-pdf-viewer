@@ -78,9 +78,9 @@ class AppBuffer(Buffer):
 
         # Use thread to avoid slow down open speed.
         threading.Thread(target=self.record_open_history).start()
-
-        # Use thread to cache all text in pdf.
-        threading.Thread(target=self.cache_reverse_index).start()
+        
+        file_name = os.path.basename(self.url)
+        self.cache_file_name = os.path.join(get_emacs_config_dir(), "pdf", "cache", file_name + ".txt")
 
         self.build_all_methods(self.buffer_widget)
 
@@ -129,10 +129,12 @@ class AppBuffer(Buffer):
         """
         Cache all text in pdf to speed up search.
         """
+        # Use thread to cache all text in pdf.
+        threading.Thread(target=lambda : self._cache_reverse_index(True)).start()
+        
+    def _cache_reverse_index(self, force=False):
         # get file name from self.url
-        file_name = os.path.basename(self.url)
-        cache_file_name = os.path.join(get_emacs_config_dir(), "pdf", "cache", file_name + ".txt")
-        self.cache_file_name = cache_file_name
+        cache_file_name = self.cache_file_name
         txt_modified_time = os.path.getmtime(cache_file_name) if os.path.exists(cache_file_name) else 0
         pdf_modified_time = os.path.getmtime(self.url)
         if not force and pdf_modified_time <= txt_modified_time:

@@ -833,8 +833,9 @@ This function works best if paired with a fuzzy search package."
          (n (length current-page-file-name))
          (cache-file-name (substring current-page-file-name start n)))
     (if (not (file-exists-p cache-file-name))
-        (message "Building %s ... or execute `eaf-pdf-rebuild-full-text-cache` to rebuild this cache file"
-                 cache-file-name)
+        (progn
+          (message "Building %s ...; \n You can execute `eaf-pdf-rebuild-full-text-cache` to rebuild this cache file when needed" cache-file-name)
+          (eaf-pdf-rebuild-full-text-cache))
       (cond
        ((require 'ivy nil 'noerror)
         ;; ivy style search
