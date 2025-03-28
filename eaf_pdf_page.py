@@ -86,6 +86,7 @@ class PdfPage(fitz.Page):
 
         self.has_annot = page.first_annot
         self.hovered_annot = None
+        self._current_match_color = QColor("#f28100").getRgbF()[0:3]
 
     def __getattr__(self, attr):
         return getattr(self.page, attr)
@@ -330,6 +331,10 @@ class PdfPage(fitz.Page):
     def mark_search_text(self, keyword, current_quads):
         self.cleanup_search_text()
 
+        if not self.is_pdf:
+            # add_highlight_annot is only for pdf
+            return 
+        
         if support_hit_max:
             quads_list = self.page.searchFor(keyword, hit_max=999, quads=True)
         else:
@@ -340,8 +345,7 @@ class PdfPage(fitz.Page):
                 annot = self.page.add_highlight_annot(quads)
                 annot.parent = self.page
                 if quads == current_quads:
-                    qcolor = QColor("#f28100")
-                    annot.set_colors(stroke=qcolor.getRgbF()[0:3])
+                    annot.set_colors(stroke=self._current_match_color)
                     annot.update()
                 self._mark_search_annot_list.append(annot)
 
