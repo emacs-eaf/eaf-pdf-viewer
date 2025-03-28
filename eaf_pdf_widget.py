@@ -514,6 +514,15 @@ class PdfViewerWidget(QWidget):
         painter.setFont(self.font)    # type: ignore
         painter.setPen(QColor(self.get_render_foreground_color()))
         self.update_page_progress(painter)
+        
+        if self.is_mark_search and not self.document.is_pdf and self.current_search_quads and self.current_search_page:
+            x0, y0, x1, y1 = self.current_search_quads.rect
+            page_offset = self.scroll_offset - (self.current_search_page) * self.scale * self.page_height
+            
+            x, y = (x0 - 10 + self.page_render_x/2) * self.scale, y1 * self.scale-page_offset
+            # print(self.current_search_quads.rect)
+            # pos = QPoint(x, y)
+            self.draw_arrow_indicator(painter, int(x), int(y)-3)
 
     def draw_presentation_page(self, painter, index):
         # Get page render information.
@@ -1087,20 +1096,11 @@ class PdfViewerWidget(QWidget):
                 self.search_page_history.add(page)
         return quads_list
 
-    def search_in_epub(self, page_num=None):
-        if page_num is not None and page_num >= 0:
-            self.jump_to_page(page_num+1)
-        else:
-            return # done
-
     def search_text(self, text, page_num = None, page_offset=-1):
-        if not self.document.is_pdf: # epub
-            self.search_in_epub(page_num)
-            return 
-            
         self.is_mark_search = True
         if page_num is not None: # clear soft hyphen in the line
             text = text.strip(" -‐")
+        self.current_search_page = page_num
         self.search_term = text
         self.last_search_term = text
         self.page_cache_pixmap_dict.clear()
