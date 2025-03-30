@@ -330,6 +330,10 @@ class PdfPage(fitz.Page):
     def mark_search_text(self, keyword, current_quads):
         self.cleanup_search_text()
 
+        if not self.is_pdf:
+            # add_highlight_annot is only for pdf
+            return 
+        
         if support_hit_max:
             quads_list = self.page.searchFor(keyword, hit_max=999, quads=True)
         else:
