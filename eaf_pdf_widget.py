@@ -673,8 +673,8 @@ class PdfViewerWidget(QWidget):
 
 
             scaling_ratio = self.page_render_width / self.rect().width()
-            progress_font_size = max(int(self.font_size * (1 - math.cos(scaling_ratio * math.pi)) / 2), 0.1)
-            painter.setFont(QFont(self.font.family(), progress_font_size))
+            progress_font_size = max(int(self.font_size * (1 - math.cos(scaling_ratio * math.pi)) / 2), 1)
+            painter.setFont(QFont(self.font.family(), int(progress_font_size)))
             painter.drawText(progress_rect,
                              Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
                              self.get_page_progress())
