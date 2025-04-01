@@ -107,3 +107,4 @@ Override this behavior
 | `o` | eaf-pdf-outline |
 | `O` | eaf-pdf-outline-edit |
 | `T` | toggle_trim_white_margin |
+| `C-t` | toggle_last_position |

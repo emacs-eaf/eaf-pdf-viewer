@@ -83,6 +83,8 @@ class AppBuffer(Buffer):
         self.cache_file_name = os.path.join(get_emacs_config_dir(), "pdf", "cache", file_name + ".txt")
 
         self.build_all_methods(self.buffer_widget)
+        
+        self.last_percentage = -1
 
         # Convert title if pdf is converted from office file.
         if arguments.endswith("_office_pdf"):
@@ -279,19 +281,26 @@ class AppBuffer(Buffer):
             self.buffer_widget.cleanup_links()
         if self.buffer_widget.is_select_mode:
             self.buffer_widget.cleanup_select()
+            
+    def mark_position(self, percentage=-1):
+        self.last_percentage = percentage if percentage != -1 else self.buffer_widget.current_percent()
+        
+    def toggle_last_position(self):
+        if self.last_percentage != -1:
+            last_percentage = self.last_percentage
+            self.mark_position()
+            self.buffer_widget.jump_to_percent(last_percentage) 
 
     def narrow_search_protocol(self, search_term="", pages=None, index=None):
         if pages == -3: # -3 as search begin signal
-            self.percentage_before_search = self.current_percent()
+            self.mark_position()
             # return page num and search target file path
             return f"{self.buffer_widget.start_page_index + 1} {self.cache_file_name}"
         elif pages == -2: # -2 : jump to target page
             self.buffer_widget.search_text("", pages, index) # cleanup highligts
             self.buffer_widget.cleanup_search()  # search done
         elif pages == -1: # -1 as search quit signal
-            if hasattr(self, "percentage_before_search"):
-                # jump back to the page before search
-                self.buffer_widget.jump_to_percent(float(self.percentage_before_search))
+            self.toggle_last_position()
             self.buffer_widget.search_text("", pages, index) # cleanup highligts
             self.buffer_widget.cleanup_search()
         elif search_term == "":

@@ -858,10 +858,12 @@ class PdfViewerWidget(QWidget):
 
     @interactive
     def scroll_to_begin(self):
+        self.buffer.mark_position()
         self.update_vertical_offset(0)    # type: ignore
 
     @interactive
     def scroll_to_end(self):
+        self.buffer.mark_position()
         self.update_vertical_offset(self.max_scroll_offset())    # type: ignore
 
     @interactive
@@ -1052,6 +1054,7 @@ class PdfViewerWidget(QWidget):
         if "page" in link:
             self.cleanup_links()
             self.save_current_pos()
+            self.buffer.mark_position()
 
             target_point = link["to"]
             offset_y_from_top = self.page_height - target_point.y
@@ -1528,6 +1531,7 @@ class PdfViewerWidget(QWidget):
         return current_link
 
     def jump_to_page(self, page_num, pos_y=None):
+        self.buffer.mark_position()
         page_nume = int(page_num) - 1
         page_offset = max(self.scale * page_nume * self.page_height, 0)
         if pos_y == None:
