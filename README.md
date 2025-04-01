@@ -108,3 +108,8 @@ Override this behavior
 | `O` | eaf-pdf-outline-edit |
 | `T` | toggle_trim_white_margin |
 | `C-t` | toggle_last_position |
+
+### Other Features
+
+- `eaf-pdf-narrow-search`: full-document line-based search and live-preview with ivy (for both PDF and EPUB)
+- left double click: open an emacs buffer filled with text of current page and jump to the corresponding line. (for EPUB and PDF when synctex failed)
