@@ -206,7 +206,8 @@ Non-nil means don't invert images."
     ("K" . "select_right_tab")
     ("o" . "eaf-pdf-outline")
     ("O" . "eaf-pdf-outline-edit")
-    ("T" . "toggle_trim_white_margin"))
+    ("T" . "toggle_trim_white_margin")
+    ("C-t" . "toggle_last_position"))
   "The keybinding of EAF PDF Viewer."
   :type '(alist :key-type (string :tag "Key bindings (e.g. \"C-n\", \"<f4>\", etc.)")
                 :value-type (string :tag "Function name"))
