@@ -31,6 +31,8 @@ from eaf_pdf_utils import support_hit_max
 from PyQt6.QtCore import QEvent, QPoint, QRect, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QCursor, QFont, QPainter, QPalette
 from PyQt6.QtWidgets import QApplication, QToolTip, QWidget
+import os
+from pathlib import Path
 
 
 def set_page_crop_box(page):
@@ -1654,7 +1656,7 @@ class PdfViewerWidget(QWidget):
         elif event.type() in [QEvent.Type.MouseButtonRelease]:
             self.is_button_press = False
 
-        if event.type() in [QEvent.Type.MouseMove, QEvent.Type.MouseButtonDblClick, QEvent.Type.MouseButtonPress]:
+        if event.type() in [QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress]:
             if not self.document.is_pdf:
                 # workaround for epub click link
                 if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.RightButton:
@@ -1738,7 +1740,7 @@ class PdfViewerWidget(QWidget):
         elif event.type() == QEvent.Type.MouseButtonDblClick:
             self.disable_popup_text_annot_mode()
             self.disable_inline_text_annot_mode()
-            if event.button() == Qt.MouseButton.RightButton:
+            if event.button() == Qt.MouseButton.RightButton and self.document.is_pdf:
                 self.handle_translate_word()
             elif event.button() == Qt.MouseButton.LeftButton:
                 self.handle_synctex_backward_edit()
@@ -1863,7 +1865,19 @@ class PdfViewerWidget(QWidget):
         ex, ey, page_index = self.get_cursor_absolute_position()
         if page_index is None or page_index >= self.document.page_count:
             return
-        eval_in_emacs("eaf-pdf-synctex-backward-edit", [self.url, page_index + 1, ex, ey])
+        folder = Path(self.url).parent
+        # chech if ".synctex.gz" file exist
+        file_name_without_ext = Path(self.url).stem
+        synctex_gz = Path(file_name_without_ext + ".synctex.gz")
+        synctex_file = folder / synctex_gz
+
+        if os.path.exists(synctex_file) and self.document.is_pdf:
+            eval_in_emacs("eaf-pdf-synctex-backward-edit", [self.url, page_index + 1, ex, ey])
+        else:
+            page_text = self.buffer.get_page_text(page_index)
+            total_lines = len(page_text.splitlines())
+            line_number = int((ey / self.page_height) * total_lines) # roughly
+            eval_in_emacs("eaf-pdf-extract-page-text", [page_text, line_number])
 
     def edit_outline_confirm(self, payload):
         self.document.set_toc(payload)

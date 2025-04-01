@@ -665,7 +665,7 @@ This function works best if paired with a fuzzy search package."
         (if (and synctex-result (string-match "Input:\\(.*\\)\nLine:\\([0-9]+\\)\n" synctex-result))
             (setq tex-file  (expand-file-name (match-string 1 synctex-result))
                   line-num (string-to-number (match-string 2 synctex-result)))
-          (message "Failed to get tex file and line number. Did you run latex with `--synctex=1'?"))
+          (message "Failed to get tex file and line number, falling back to Text Extraction. Did you run latex with `--synctex=1'?"))
         `(,tex-file ,line-num))
     (message "Can not found %s" eaf-pdf-synctex-path)
     nil))
@@ -710,12 +710,13 @@ This function works best if paired with a fuzzy search package."
   (let* ((tex-and-line (eaf-pdf--get-tex-and-line pdf-file page-num x y))
          (tex-file (nth 0 tex-and-line))
          (line-num (nth 1 tex-and-line)))
-    (when (and tex-file line-num)
-      (let ((buffer (get-buffer (file-name-nondirectory tex-file))))
-        (if buffer
-            (switch-to-buffer-other-window buffer)
-          (find-file-other-window tex-file))
-        (goto-line line-num)))))
+    (if (and tex-file line-num)
+        (let ((buffer (get-buffer (file-name-nondirectory tex-file))))
+          (if buffer
+              (switch-to-buffer-other-window buffer)
+            (find-file-other-window tex-file))
+          (goto-line line-num))
+      (eaf-pdf-extract-page-text))))
 
 (defun eaf-pdf-outline-edit-buffer-confirm ()
   (interactive)
@@ -732,17 +733,19 @@ This function works best if paired with a fuzzy search package."
          )
     (eaf-call-async "execute_function_with_args" eaf--buffer-id "edit_outline_confirm" payload)))
 
-(defun eaf-pdf-extract-page-text ()
+(defun eaf-pdf-extract-page-text (&optional page-text line-num)
   "Display the text of current page in a new buffer."
   (interactive)
   (let ((page-text-buffer (get-buffer-create (format "*Page text: %s*" (buffer-name))))
-        (page-text (eaf-call-sync "execute_function" eaf--buffer-id "get_page_text")))
+        (page-text (if page-text page-text (eaf-call-sync "execute_function" eaf--buffer-id "get_page_text"))))
     (unless (string-empty-p page-text)
       (with-current-buffer page-text-buffer
         (erase-buffer)
         (insert page-text)
         (goto-char (point-min)))
-      (switch-to-buffer-other-window page-text-buffer))))
+      (switch-to-buffer-other-window page-text-buffer)
+      (when line-num
+        (goto-line line-num)))))
 
 (defun eaf-pdf-rebuild-full-text-cache ()
   (interactive)
