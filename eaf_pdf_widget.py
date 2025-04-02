@@ -1127,6 +1127,8 @@ class PdfViewerWidget(QWidget):
 
         if(len(self.search_text_offset_list) == 0):
             message_to_emacs("No results found with \"" + self.search_term + "\".")
+            if page_num is not None:
+                self.jump_to_page(page_num+1)
             self.is_mark_search = False
         else:
             try:
@@ -1533,7 +1535,6 @@ class PdfViewerWidget(QWidget):
         return current_link
 
     def jump_to_page(self, page_num, pos_y=None):
-        self.buffer.mark_position()
         page_nume = int(page_num) - 1
         page_offset = max(self.scale * page_nume * self.page_height, 0)
         if pos_y == None:

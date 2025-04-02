@@ -799,13 +799,24 @@ This function works best if paired with a fuzzy search package."
            (current-index (cl-position id-target same-number-candidates :test 'equal)))
       (eaf-call-async "execute_function_with_args" eaf-buffer-id "narrow_search_protocol" line current-page (or current-index 0)))))
 
-(defun eaf-pdf-narrow--ivy (cache-file-name eaf-buffer-id &optional current-page) 
-  (let* ((candidates (split-string
-                      (with-temp-buffer
-                        (set-buffer-multibyte t)
-                        (insert-file-contents-literally cache-file-name)
-                        (decode-coding-region (point-min) (point-max) 'utf-8)
-                        (buffer-string)) "\n" t)))
+(defun eaf-pdf-narrow--read-cache-file (cache-file-name)
+  "read cache file"
+  (split-string
+   (with-temp-buffer
+     (set-buffer-multibyte t)
+     (insert-file-contents-literally cache-file-name)
+     (decode-coding-region (point-min) (point-max) 'utf-8)
+     (buffer-string)) "\n" t))
+
+(defun eaf-pdf-narrow--ivy (cache-file-name eaf-buffer-id obj current-page) 
+  (let* ((candidates)
+         (initial-index (format "%s:" current-page)))
+    (cond ((string= obj "line")
+           (setq candidates (eaf-pdf-narrow--read-cache-file cache-file-name)))
+          ((string= obj "toc")
+           (let ((toc-index (eaf-call-sync "execute_function" eaf-buffer-id "get_toc_for_search")))
+             (setq candidates (car toc-index))
+             (setq initial-index (cadr toc-index)))))
     (if (require 'ivy nil t)
         (ivy-read
          "Narrow Search: "
@@ -817,15 +828,18 @@ This function works best if paired with a fuzzy search package."
                        (ivy-state-current ivy-last)
                        ivy--index ivy--old-cands))
          :require-match t
-         :preselect (format "%s:" current-page)
+         :preselect initial-index
          :action (lambda (selection) (eaf-pdf-narrow--done eaf-buffer-id))
          :unwind (lambda () (unless ivy-exit (eaf-pdf-narrow--quit eaf-buffer-id)))
          :caller 'eaf-pdf-narrow--ivy)
       (message "Please install ivy first."))))
 
-(defun eaf-pdf-narrow-search ()
-  "search text/line in pdf"
+(defun eaf-pdf-narrow-search (&optional obj)
+  "search obj in pdf, obj can be: 
+  `line`: all lines in the pdf/epub
+  `toc`: table of contents"
   (interactive)
+  (unless obj (setq obj "line"))
   (let* ((eaf-buffer-id eaf--buffer-id)
          (current-page-file-name (eaf-pdf-narrow--begin eaf-buffer-id))
          (current-page (car (split-string current-page-file-name)))
@@ -839,7 +853,7 @@ This function works best if paired with a fuzzy search package."
       (cond
        ((require 'ivy nil 'noerror)
         ;; ivy style search
-        (eaf-pdf-narrow--ivy cache-file-name eaf-buffer-id current-page))
+        (eaf-pdf-narrow--ivy cache-file-name eaf-buffer-id obj current-page))
        (t
         (eaf-call-async "execute_function" eaf-buffer-id "search_text_forward" ))))))
 

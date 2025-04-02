@@ -111,5 +111,13 @@ Override this behavior
 
 ### Other Features
 
-- `eaf-pdf-narrow-search`: full-document line-based search and live-preview with ivy (for both PDF and EPUB)
+- `(eaf-pdf-narrow-search)`: full-document line-based search and live-preview with ivy (for both PDF and EPUB)
+- `(eaf-pdf-narrow-search "toc")`: search toc with ivy (for both PDF and EPUB)
+
+  You can customize the search functions like this:
+  ```Elisp
+    (defun eaf-pdf-narrow-search-toc () (interactive) (eaf-pdf-narrow-search "toc"))
+    (eaf-bind-key eaf-pdf-narrow-search-toc "C-o" eaf-pdf-viewer-keybinding)
+    (eaf-bind-key eaf-pdf-narrow-search "/" eaf-pdf-viewer-keybinding)
+  ```
 - left double click: open an emacs buffer filled with text of current page and jump to the corresponding line. (for EPUB and PDF when synctex failed)
