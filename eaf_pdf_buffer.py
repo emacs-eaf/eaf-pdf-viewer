@@ -33,6 +33,7 @@ sys.path.append(os.path.dirname(__file__))
 
 from eaf_pdf_widget import PdfViewerWidget
 from eaf_pdf_utils import use_new_doc_name
+from bisect import bisect_left
 
 class SynctexInfo():
     def __init__(self, info):
@@ -81,6 +82,7 @@ class AppBuffer(Buffer):
         
         file_name = os.path.basename(self.url)
         self.cache_file_name = os.path.join(get_emacs_config_dir(), "pdf", "cache", file_name + ".txt")
+        self._is_caching = False
 
         self.build_all_methods(self.buffer_widget)
         
@@ -132,7 +134,9 @@ class AppBuffer(Buffer):
         Cache all text in pdf to speed up search.
         """
         # Use thread to cache all text in pdf.
-        threading.Thread(target=lambda : self._cache_reverse_index(True)).start()
+        if not self._is_caching:
+            self._is_caching = True
+            threading.Thread(target=lambda : self._cache_reverse_index(True)).start()
         
     def _cache_reverse_index(self, force=False):
         # get file name from self.url
@@ -147,6 +151,7 @@ class AppBuffer(Buffer):
         text = self.buffer_widget.build_reverse_index()
         with open(cache_file_name, "w", encoding="utf-8") as f:
             f.write(text)
+        self._is_caching = False
 
     def destroy_buffer(self):
         if self.delete_temp_file:
@@ -295,7 +300,7 @@ class AppBuffer(Buffer):
         if pages == -3: # -3 as search begin signal
             self.mark_position()
             # return page num and search target file path
-            return f"{self.buffer_widget.start_page_index + 1} {self.cache_file_name}"
+            return f"{self.current_page()} {self.cache_file_name}"
         elif pages == -2: # -2 : jump to target page
             self.buffer_widget.search_text("", pages, index) # cleanup highligts
             self.buffer_widget.cleanup_search()  # search done
@@ -526,6 +531,25 @@ class AppBuffer(Buffer):
             result += "{0} {1} {2}\n".format("".join("*" * line[0]), line[1], line[2])
         return result
 
+    def get_toc_for_search (self):
+        doc = self.buffer_widget.document
+        toc = doc.get_toc() if use_new_doc_name else doc.getToC()
+        toc_list = []
+        toc_pages = []
+        for line in toc:
+            toc_list.append(f"{line[2]}:{line[0]*' '}{line[1]}")
+            toc_pages.append(line[2])
+        page = self.buffer_widget.start_page_index + 1
+        index = 0
+        if len(toc_pages) >= 100:
+            index = bisect_left(toc_pages, page)
+        else:
+            for i in range(len(toc_pages)): 
+                if page < toc_pages[i]:
+                    index = i-1
+                    break
+        return toc_list, index
+    
     def edit_outline_confirm(self, payload):
         self.buffer_widget.edit_outline_confirm(payload)
 
