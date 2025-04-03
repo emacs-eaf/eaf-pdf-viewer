@@ -673,12 +673,8 @@ class PdfViewerWidget(QWidget):
             if type(show_progress_on_page) == int:
                 base_progress_font_size = show_progress_on_page
             
-            render_window_ratio = self.page_render_width / self.rect().width()
-            if render_window_ratio < 1:
-                scaling_factor = self.scale
-            else:
-                scaling_factor = round(self.scale / render_window_ratio, 2)
-            progress_font_size = int((1-0.6*math.exp(-1.5*(scaling_factor-1))) * base_progress_font_size)
+
+            progress_font_size = int((1-0.6*math.exp(-1.5*(self.scale-1))) * base_progress_font_size)
             progress_font = QFont()
             progress_font.setPixelSize(progress_font_size)
             painter.setFont(progress_font)
