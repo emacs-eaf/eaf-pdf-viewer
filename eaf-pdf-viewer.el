@@ -84,8 +84,11 @@
   :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-show-progress-on-page t
-  "If it is t, pdf-viewer will show progress (in percentage) and page number directly on the document."
-  :type 'boolean
+  "If it is t, pdf-viewer will show progress (in percentage) and page number directly on the document.
+  if it is an integer, it will be used as the font size of the progress. 0 means no progress.
+  "
+  :type '(choice (boolean :tag "Show progress on page" t)
+                 (integer :tag "Font size of progress on page" 0))
   :group 'eaf-pdf-viewer)
 
 (defcustom eaf-pdf-dark-mode "ignore"
