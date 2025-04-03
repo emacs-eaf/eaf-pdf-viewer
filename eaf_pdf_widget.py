@@ -664,15 +664,17 @@ class PdfViewerWidget(QWidget):
         # Draw progress on page.
         show_progress_on_page, = get_emacs_vars(["eaf-pdf-show-progress-on-page"])
         if show_progress_on_page:
-            progress_rect = QRect(int(self.page_render_x + self.page_annotate_padding_x),
-                                  int(self.rect().y() + self.page_annotate_padding_y),
-                                  int(self.page_render_width - self.page_annotate_padding_x * 2),
-                                  int(self.rect().height() - self.page_annotate_padding_y * 2))
+            bottom = int(self.rect().height() - self.page_annotate_padding_y)
+            right = int(min((self.rect().width() + self.page_render_width)/2, self.rect().width()) - self.page_annotate_padding_x)
+            x, y = w, h = right//2, bottom//2
+            progress_rect = QRect(x, y, w, h)
+
             base_progress_font_size = self.default_progress_font_size
             if type(show_progress_on_page) == int:
                 base_progress_font_size = show_progress_on_page
-            scaling_ratio = self.page_render_width / self.rect().width()
-            progress_font_size = max(int(base_progress_font_size * (1 - math.cos(scaling_ratio * math.pi)) / 2), 1)
+            
+
+            progress_font_size = int((1-0.6*math.exp(-1.5*(self.scale-1))) * base_progress_font_size)
             progress_font = QFont()
             progress_font.setPixelSize(progress_font_size)
             painter.setFont(progress_font)
