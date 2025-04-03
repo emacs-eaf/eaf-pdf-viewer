@@ -109,7 +109,7 @@ Override this behavior
 | `T` | toggle_trim_white_margin |
 | `C-t` | toggle_last_position |
 
-### Other Features
+### Other Features and Customization
 
 - `(eaf-pdf-narrow-search)`: full-document line-based search and live-preview with ivy (for both PDF and EPUB)
 - `(eaf-pdf-narrow-search "toc")`: search toc with ivy (for both PDF and EPUB)
@@ -121,3 +121,11 @@ Override this behavior
     (eaf-bind-key eaf-pdf-narrow-search "/" eaf-pdf-viewer-keybinding)
   ```
 - left double click: open an emacs buffer filled with text of current page and jump to the corresponding line. (for EPUB and PDF when synctex failed)
+
+- set progress bar font size lively
+```Elisp
+  (setq eaf-pdf-show-progress-on-page 't) ;; default 24
+  (setq eaf-pdf-show-progress-on-page nil) ;; hide progress bar
+  (setq eaf-pdf-show-progress-on-page 20) ;; set font size to 20
+  (setq eaf-pdf-show-progress-on-page 0) ;; hide progress bar
+```

@@ -194,10 +194,7 @@ class PdfViewerWidget(QWidget):
         self.page_annotate_padding_x = 10
         self.page_annotate_padding_y = 10
 
-        self.font = QFont()    # type: ignore
-        self.font_size = 24
-        self.font.setPointSize(self.font_size)
-
+        self.default_progress_font_size = 24
         # Page cache.
         self.page_cache_pixmap_dict = {}
         self.page_cache_scale = self.scale
@@ -512,8 +509,7 @@ class PdfViewerWidget(QWidget):
         # Restore painter.
         painter.restore()
 
-        # Render progress information.
-        painter.setFont(self.font)    # type: ignore
+        # Render progress information.  # type: ignore
         painter.setPen(QColor(self.get_render_foreground_color()))
         self.update_page_progress(painter)
         
@@ -672,11 +668,14 @@ class PdfViewerWidget(QWidget):
                                   int(self.rect().y() + self.page_annotate_padding_y),
                                   int(self.page_render_width - self.page_annotate_padding_x * 2),
                                   int(self.rect().height() - self.page_annotate_padding_y * 2))
-
-
+            base_progress_font_size = self.default_progress_font_size
+            if type(show_progress_on_page) == int:
+                base_progress_font_size = show_progress_on_page
             scaling_ratio = self.page_render_width / self.rect().width()
-            progress_font_size = max(int(self.font_size * (1 - math.cos(scaling_ratio * math.pi)) / 2), 1)
-            painter.setFont(QFont(self.font.family(), int(progress_font_size)))
+            progress_font_size = max(int(base_progress_font_size * (1 - math.cos(scaling_ratio * math.pi)) / 2), 1)
+            progress_font = QFont()
+            progress_font.setPixelSize(progress_font_size)
+            painter.setFont(progress_font)
             painter.drawText(progress_rect,
                              Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
                              self.get_page_progress())
