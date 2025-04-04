@@ -1060,7 +1060,7 @@ class PdfViewerWidget(QWidget):
             self.buffer.mark_position()
 
             target_point = link["to"]
-            offset_y_from_top = self.page_height - target_point.y
+            offset_y_from_top = self.page_height - target_point.y if self.document.is_pdf else target_point.y
             link_offset = (link["page"] * self.page_height + offset_y_from_top) * self.scale
             self.link_page_num = link["page"] + 1
             self.link_page_offset_x = target_point.x * self.scale
@@ -1657,13 +1657,6 @@ class PdfViewerWidget(QWidget):
             self.is_button_press = True
         elif event.type() in [QEvent.Type.MouseButtonRelease]:
             self.is_button_press = False
-
-        if event.type() in [QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress]:
-            if not self.document.is_pdf:
-                # workaround for epub click link
-                if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.RightButton:
-                    self.handle_click_link(False)
-                return False
 
         if event.type() == QEvent.Type.MouseMove:
             if not self.is_rect_annot_mode:

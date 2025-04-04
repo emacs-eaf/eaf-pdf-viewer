@@ -167,8 +167,10 @@ class AppBuffer(Buffer):
     @PostGui()
     def handle_input_response(self, callback_tag, result_content):
         if callback_tag == "jump_page":
+            self.mark_position()
             self.buffer_widget.jump_to_page(int(result_content))
         elif callback_tag == "jump_percent":
+            self.mark_position()
             self.buffer_widget.jump_to_percent(int(result_content))
         elif callback_tag == "jump_link":
             self.buffer_widget.jump_to_link(str(result_content))
@@ -275,8 +277,11 @@ class AppBuffer(Buffer):
         return ""
 
     def jump_to_link(self):
-        self.buffer_widget.add_mark_jump_link_tips()
-        self.send_input_message("Jump to Link: ", "jump_link", "marker")
+        if self.buffer_widget.document.is_pdf:
+            self.buffer_widget.add_mark_jump_link_tips()
+            self.send_input_message("Jump to Link: ", "jump_link", "marker")
+        else:
+            message_to_emacs("Please use mouse to click link in EPUB.", False, False)
 
     @PostGui()
     def action_quit(self):
@@ -302,11 +307,11 @@ class AppBuffer(Buffer):
             # return page num and search target file path
             return f"{self.current_page()} {self.cache_file_name}"
         elif pages == -2: # -2 : jump to target page
-            self.buffer_widget.search_text("", pages, index) # cleanup highligts
+            self.buffer_widget.search_text("", pages, index) # cleanup highlights
             self.buffer_widget.cleanup_search()  # search done
         elif pages == -1: # -1 as search quit signal
             self.toggle_last_position()
-            self.buffer_widget.search_text("", pages, index) # cleanup highligts
+            self.buffer_widget.search_text("", pages, index) # cleanup highlights
             self.buffer_widget.cleanup_search()
         elif search_term == "":
             return  # at least one char for search
