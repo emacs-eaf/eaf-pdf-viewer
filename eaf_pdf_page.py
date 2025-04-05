@@ -348,13 +348,14 @@ class PdfPage(fitz.Page):
                     annot.set_colors(stroke=qcolor.getRgbF()[0:3])
                     annot.update()
                 self._mark_search_annot_list.append(annot)
+            return self._mark_search_annot_list
 
     def cleanup_search_text(self):
         if self._mark_search_annot_list:
             # message_to_emacs("Unmarked all matched results.")
             for annot in self._mark_search_annot_list:
                 self.page.delete_annot(annot)
-            self._mark_search_annot_list = []
+            self._mark_search_annot_list.clear()
 
     def mark_jump_link_tips(self, letters):
         fontsize, = get_emacs_vars(["eaf-pdf-marker-fontsize"])
