@@ -20,7 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from PyQt6.QtGui import QColor
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer,  QObject
 from core.buffer import Buffer    # type: ignore
 from core.utils import *
 import fitz
@@ -62,6 +62,61 @@ class SynctexInfo():
         self.pos_y = None
 
 
+class SearchAdapter(QObject):
+    """
+    Debounce search adapter to dynamic delay the search execution based on the number of pages.
+    """
+    def __init__(self, widget):
+        super().__init__()
+        self.widget = widget
+        self.pages = widget.document.page_count
+        self.last_search_time = 0
+        # may be user customized?
+        self.search_delay = 1 if self.pages > 200 else self.pages / 200
+        self.search_function = widget.search_text
+        self.debounce_timer = QTimer(widget)  
+        self.debounce_timer.timeout.connect(self._execute_search)
+        self.current_search_term = None
+        
+    def search_text(self, search_term):
+        self.current_search_term = search_term
+        dynamic_delay = self.search_delay 
+
+        self.debounce_timer.stop()
+        self.debounce_timer.start(int(dynamic_delay * 1000))
+
+    def _execute_search(self):
+        if self.current_search_term is not None:
+            self.search_function(self.current_search_term)
+        self.current_search_term = None
+        
+    def cancel_search(self):
+        self.debounce_timer.stop()
+        self.current_search_term = None
+        self.widget.cleanup_search()
+        
+    def keydown_in_minibuffer(self, forward):
+        self.widget.search_mode_forward = forward
+        self.widget.search_mode_backward = not forward
+        if self.current_search_term is not None: #  searching
+            return
+        if self.widget.search_term == "":
+            message_to_emacs("Please enter a search string!", False, False)
+            return
+
+        eval_in_emacs("add-to-history", ["'minibuffer-history",
+                                            self.widget.search_term])
+        if forward:
+            self.widget.jump_next_match()
+        else:
+            self.widget.jump_last_match()
+        
+    def keydown_forward(self):
+        self.keydown_in_minibuffer(True)
+            
+    def keydown_backward(self):
+        self.keydown_in_minibuffer(False)
+        
 class AppBuffer(Buffer):
     def __init__(self, buffer_id, url, arguments):
         Buffer.__init__(self, buffer_id, url, arguments, False)
@@ -85,6 +140,7 @@ class AppBuffer(Buffer):
         self._is_caching = False
 
         self.build_all_methods(self.buffer_widget)
+        self.search_adapter = SearchAdapter(self.buffer_widget)
         
         self.last_percentage = -1
 
@@ -175,7 +231,7 @@ class AppBuffer(Buffer):
         elif callback_tag == "jump_link":
             self.buffer_widget.jump_to_link(str(result_content))
         elif callback_tag == "search_text":
-            self.buffer_widget.search_text(str(result_content))
+            self.search_adapter.search_text(str(result_content))
 
     @PostGui()
     def cancel_input_response(self, callback_tag):
@@ -185,27 +241,17 @@ class AppBuffer(Buffer):
     @PostGui()
     def handle_search_forward(self, callback_tag):
         if callback_tag == "search_text":
-            if self.buffer_widget.search_term != "":
-                eval_in_emacs("add-to-history", ["'minibuffer-history",
-                                                 self.buffer_widget.search_term])
-                self.buffer_widget.jump_next_match()
-            else:
-                message_to_emacs("Please enter a search string!", False, False)
+            self.search_adapter.keydown_forward()
 
     @PostGui()
     def handle_search_backward(self, callback_tag):
         if callback_tag == "search_text":
-            if self.buffer_widget.search_term != "":
-                eval_in_emacs("add-to-history", ["'minibuffer-history",
-                                                 self.buffer_widget.search_term])
-                self.buffer_widget.jump_last_match()
-            else:
-                message_to_emacs("Please enter a search string!", False, False)
+            self.search_adapter.keydown_backward()
 
     @PostGui()
     def handle_search_finish(self, callback_tag):
         if callback_tag == "search_text":
-            self.buffer_widget.cleanup_search()
+            self.search_adapter.cancel_search()
 
     @PostGui()
     def scroll_other_buffer(self, scroll_direction, scroll_type):

@@ -128,7 +128,7 @@ class PdfViewerWidget(QWidget):
         self.search_text_offset_list = []
         self.current_search_quads = None
         self.search_text_quads_list = []
-        self.search_page_history = set()
+        self.rendered_searched_quads = {}
 
         # select text
         self.is_select_mode = False
@@ -388,7 +388,9 @@ class PdfViewerWidget(QWidget):
 
         # follow page search text
         if self.is_mark_search:
-            page.mark_search_text(self.search_term, self.current_search_quads)
+            highlights = page.mark_search_text(self.search_term, self.current_search_quads)
+            if highlights:  # this is the actual rendered quads, collect for cleanup
+                self.rendered_searched_quads[index] = highlights
         else:
             page.cleanup_search_text()
 
@@ -1084,23 +1086,28 @@ class PdfViewerWidget(QWidget):
         self.update()
 
     def _search_in_pages(self, text, page_list):
+        """
+        A raw search process, the purpose is to collect the quads, pages and offsets. 
+        It doesn't do any highlight, so we don't need to call
+        self.document[page_index] to get an full prerendered page which is very slow.
+        """
         for page_index in page_list:
-            # Search from the current page
-            page = self.document[page_index]
+            page = self.document.document[page_index]
             if page_index < self.current_page_index:
                 self.search_text_index = len(self.search_text_quads_list)
             
             if support_hit_max:
-                quads_list = self.document.search_page_for(page_index, text, hit_max=999, quads=True)
+                quads_list = page.search_for(text, hit_max=999, quads=True)
             else:
-                quads_list = self.document.search_page_for(page_index, text, quads=True)
+                quads_list = page.search_for(text, quads=True)
+
             if quads_list:
-                for index, quad in enumerate(quads_list):
+                for quad in quads_list: 
+                    # collect quads and offsets just for page indexing
+                    # rendered quads should be collected in paintEvent/get_page_render_info/get_page_pixmap
                     search_text_offset = (page_index * self.page_height + quad.ul.y) * self.scale
                     self.search_text_offset_list.append(search_text_offset)
                     self.search_text_quads_list.append(quad)
-                self.search_page_history.add(page)
-        return quads_list
 
     def search_text(self, text, page_num = None, page_offset=-1):
         self.is_mark_search = True
@@ -1114,11 +1121,7 @@ class PdfViewerWidget(QWidget):
         self.search_text_quads_list.clear()
 
         if self.search_term == "":
-            for page in self.search_page_history:
-                page.cleanup_search_text()
-            self.page_cache_pixmap_dict.clear()
-            self.search_page_history.clear()
-            self.update()
+            self.cleanup_search_highlights()
             return
 
         self.search_text_index = 0
@@ -1133,6 +1136,7 @@ class PdfViewerWidget(QWidget):
             self.is_mark_search = False
         else:
             try:
+                self.search_text_index %= len(self.search_text_quads_list) # avoid index out of range
                 idx = page_offset if page_offset != -1 else self.search_text_index
                 self.jump_to_offset(self.search_text_offset_list[idx])
                 self.current_search_quads = self.search_text_quads_list[idx]
@@ -1173,9 +1177,22 @@ class PdfViewerWidget(QWidget):
         self.search_mode_backward = False
         self.current_search_quads = None
         self.search_term = ""
-        self.page_cache_pixmap_dict.clear()
         self.search_text_offset_list.clear()
         self.search_text_quads_list.clear()
+        self.cleanup_search_highlights()
+        
+    def cleanup_search_highlights(self):
+        """
+        remove all search highlights, but may still be in search mode, e.g. search empty string
+        """
+        self.page_cache_pixmap_dict.clear()
+        for page_num, annot_list in self.rendered_searched_quads.items():
+            raw_page = self.document.document[page_num]
+            if annot_list:
+                for annot in annot_list:
+                    raw_page.delete_annot(annot)
+            annot_list.clear() # make sure we don't have any dangling references
+        self.rendered_searched_quads.clear()
         self.update()
 
     def get_select_char_list(self):
