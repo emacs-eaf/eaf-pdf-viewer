@@ -387,12 +387,12 @@ class PdfViewerWidget(QWidget):
             page.cleanup_mark_link()
 
         # follow page search text
+        old_annots_on_page = self.rendered_searched_quads.get(index, [])
+        page.cleanup_search_text(old_annots_on_page)
         if self.is_mark_search:
             highlights = page.mark_search_text(self.search_term, self.current_search_quads)
-            if highlights:  # this is the actual rendered quads, collect for cleanup
-                self.rendered_searched_quads[index] = highlights
-        else:
-            page.cleanup_search_text()
+            # this is the actual rendered quads, collect for cleanup
+            self.rendered_searched_quads[index] = highlights
 
         if self.is_jump_link:
             self.jump_link_key_cache_dict.update(page.mark_jump_link_tips(self.marker_letters))
@@ -1110,18 +1110,20 @@ class PdfViewerWidget(QWidget):
                     self.search_text_quads_list.append(quad)
 
     def search_text(self, text, page_num = None, page_offset=-1):
+        # clear the last search
+        self.cleanup_search()
         self.is_mark_search = True
-        if page_num is not None: # clear soft hyphen in the line
+        # a new search
+        
+        if page_num is not None: # narrowed line search, clear soft hyphen in the line
             text = text.strip(" -‐")
+            # don't need to save last_search_term for line search
+        else:
+            self.last_search_term = text
         self.current_search_page = page_num
         self.search_term = text
-        self.last_search_term = text
-        self.page_cache_pixmap_dict.clear()
-        self.search_text_offset_list.clear()
-        self.search_text_quads_list.clear()
-
+        
         if self.search_term == "":
-            self.cleanup_search_highlights()
             return
 
         self.search_text_index = 0
@@ -1175,11 +1177,13 @@ class PdfViewerWidget(QWidget):
         self.is_mark_search = False
         self.search_mode_forward = False
         self.search_mode_backward = False
-        self.current_search_quads = None
+        
+        self.cleanup_search_highlights()
+        
         self.search_term = ""
+        self.current_search_quads = None
         self.search_text_offset_list.clear()
         self.search_text_quads_list.clear()
-        self.cleanup_search_highlights()
         
     def cleanup_search_highlights(self):
         """
@@ -1188,10 +1192,10 @@ class PdfViewerWidget(QWidget):
         self.page_cache_pixmap_dict.clear()
         for page_num, annot_list in self.rendered_searched_quads.items():
             raw_page = self.document.document[page_num]
-            if annot_list:
-                for annot in annot_list:
-                    raw_page.delete_annot(annot)
+            for annot in annot_list:
+                raw_page.delete_annot(annot)
             annot_list.clear() # make sure we don't have any dangling references
+                
         self.rendered_searched_quads.clear()
         self.update()
 
