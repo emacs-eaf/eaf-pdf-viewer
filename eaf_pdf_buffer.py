@@ -353,11 +353,9 @@ class AppBuffer(Buffer):
             # return page num and search target file path
             return f"{self.current_page()} {self.cache_file_name}"
         elif pages == -2: # -2 : jump to target page
-            self.buffer_widget.search_text("", pages, index) # cleanup highlights
             self.buffer_widget.cleanup_search()  # search done
         elif pages == -1: # -1 as search quit signal
             self.toggle_last_position()
-            self.buffer_widget.search_text("", pages, index) # cleanup highlights
             self.buffer_widget.cleanup_search()
         elif search_term == "":
             return  # at least one char for search

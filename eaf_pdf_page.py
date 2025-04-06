@@ -326,13 +326,11 @@ class PdfPage(fitz.Page):
             for annot in self._mark_link_annot_list:
                 self.page.delete_annot(annot)
             self._mark_link_annot_list = []
-
+            
     def mark_search_text(self, keyword, current_quads):
-        self.cleanup_search_text()
-
         if not self.is_pdf:
             # add_highlight_annot is only for pdf
-            return 
+            return []
         
         if support_hit_max:
             quads_list = self.page.searchFor(keyword, hit_max=999, quads=True)
@@ -349,13 +347,13 @@ class PdfPage(fitz.Page):
                     annot.update()
                 self._mark_search_annot_list.append(annot)
             return self._mark_search_annot_list
+        return []
 
-    def cleanup_search_text(self):
-        if self._mark_search_annot_list:
-            # message_to_emacs("Unmarked all matched results.")
-            for annot in self._mark_search_annot_list:
-                self.page.delete_annot(annot)
-            self._mark_search_annot_list.clear()
+    def cleanup_search_text(self, old_annots):
+        annots = set(self._mark_search_annot_list) | set(old_annots)
+        for annot in annots:
+            self.page.delete_annot(annot)
+        self._mark_search_annot_list.clear()
 
     def mark_jump_link_tips(self, letters):
         fontsize, = get_emacs_vars(["eaf-pdf-marker-fontsize"])
