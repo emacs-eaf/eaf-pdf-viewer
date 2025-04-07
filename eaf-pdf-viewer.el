@@ -151,6 +151,12 @@ Non-nil means don't invert images."
   :type 'string
   :group 'eaf-pdf-viewer)
 
+(defcustom eaf-pdf-tab-bar-height-in-pixels
+  (if tab-bar-mode (* (line-pixel-height) (tab-bar-height)) 0)
+  "the height of the tab bar in pixels. users should not change tab-bar height when using eaf"
+  :type 'integer
+  :group 'eaf-pdf-viewer)
+
 (defcustom eaf-pdf-viewer-keybinding
   '(("j" . "scroll_up")
     ("<down>" . "scroll_up")
@@ -859,6 +865,7 @@ This function works best if paired with a fuzzy search package."
         (eaf-pdf-narrow--ivy cache-file-name eaf-buffer-id obj current-page))
        (t
         (eaf-call-async "execute_function" eaf-buffer-id "search_text_forward" ))))))
+
 
 ;;;; Register as module for EAF
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))

@@ -33,13 +33,8 @@ from PyQt6.QtGui import QColor, QCursor, QFont, QPainter, QPalette
 from PyQt6.QtWidgets import QApplication, QToolTip, QWidget
 import os
 from pathlib import Path
+from itertools import accumulate
 
-
-def set_page_crop_box(page):
-    if hasattr(page, "set_cropbox"):
-        return page.set_cropbox
-    else:
-        return page.set_cropbox
 
 class PdfViewerWidget(QWidget):
 
@@ -71,7 +66,8 @@ class PdfViewerWidget(QWidget):
          self.text_highlight_annot_color,
          self.text_underline_annot_color,
          self.inline_text_annot_color,
-         self.inline_text_annot_fontsize) = get_emacs_vars([
+         self.inline_text_annot_fontsize,
+         self.emacs_tab_bar_height) = get_emacs_vars([
              "eaf-marker-letters",
              "eaf-pdf-dark-mode",
              "eaf-pdf-dark-exclude-image",
@@ -81,7 +77,9 @@ class PdfViewerWidget(QWidget):
              "eaf-pdf-text-highlight-annot-color",
              "eaf-pdf-text-underline-annot-color",
              "eaf-pdf-inline-text-annot-color",
-             "eaf-pdf-inline-text-annot-fontsize"])
+             "eaf-pdf-inline-text-annot-fontsize",
+             "eaf-pdf-tab-bar-height-in-pixels"
+             ])
 
         self.theme_mode = get_emacs_theme_mode()
         self.theme_foreground_color = get_emacs_theme_foreground()
@@ -216,8 +214,9 @@ class PdfViewerWidget(QWidget):
 
         self.start_page_index = 0
         self.start_page_index_before_presentation = 0
-        self.current_page_index = 0
+        self.current_page_index1 = 1 # for mode-line-position, start from 1
         self.last_page_index = 0
+        self.top_y = 0 # y coordinate of scroll_offset relative to the start of the start_page_index
 
         self.load_document(url)
 
@@ -254,12 +253,76 @@ class PdfViewerWidget(QWidget):
         self.page_width = self.document.get_page_width()
         self.page_height = self.document.get_page_height()
         self.page_total_number = self.document.page_count
+        self.page_widths, self.page_heights = self.document.get_all_widths_heights()
+        self.page_heights_prefix_sum = list(accumulate(self.page_heights))
+        self.is_standard_doc = False
+        if len(set(self.page_widths)) == 1:
+            self.offset_y_to_render_y = self.offset_y_to_render_y1
+            self.is_standard_doc = True
+        else:
+            self.offset_y_to_render_y = self.offset_y_to_render_y2
+            message_to_emacs("This file has different page sizes, it may take a bit longer to load pages.")
 
         # Register file watcher, when document is change, re-calling this function.
         self.document.watch_file(url, self.load_document)
 
         self.update()
-
+    
+    def offset_y_to_render_y1(self, y):
+        """
+        Using simple algebra to convert global offset y coordinate to page_index and local y coordinate
+        
+        Return: page_index, accumulated_y before page_index, local y
+        """
+        rendered_page_height = self.page_height * self.scale + self.page_padding
+        page_index = int(y / rendered_page_height)
+        if page_index == 0:
+            return 0, 0, y
+        else:
+            accumulated_height = page_index * rendered_page_height
+            return page_index, accumulated_height, y - accumulated_height
+        
+    def accumulate_page_heights(self, page_index):
+        padding_height = self.page_padding * (page_index + 1)
+        accumulated_height = self.page_heights_prefix_sum[page_index] * self.scale + padding_height
+        return accumulated_height
+        
+    def offset_y_to_render_y2(self, y):
+        """
+        Using prefix sum array to convert global offset y coordinate to page_index and local y coordinate 
+        relative to the left top corner of the rendered page.
+        
+        Return: page_index, accumulated_y before page_index, local y
+        """
+        
+        left, right = 0, self.page_total_number - 1
+        while left <= right:
+            mid = (left + right) // 2
+            accumulated_height = self.accumulate_page_heights(mid)
+            if accumulated_height < y:
+                left = mid + 1
+            else:
+                right = mid - 1
+        page_index = left
+        if page_index == 0:
+            return 0, 0, y
+        else:
+            accumulated_height = self.accumulate_page_heights(page_index - 1)
+            return page_index, accumulated_height, y - accumulated_height
+        
+    def window_y_to_page_y(self, y):
+        """
+        Given y coordinate relative to the top of the window (e.g. cursor position), 
+        Returned the page index and y coordinate relative to the page of pymupdf.
+        """
+        render_offset = y + self.top_y
+        for index in range(self.start_page_index, self.last_page_index):
+            page_height = self.page_heights[index] * self.scale + self.page_padding
+            if render_offset < page_height:
+                break
+            render_offset -= page_height
+        return index, render_offset / self.scale
+    
     def is_buffer_focused(self):
         # This check is slow, use only when necessary
         try:
@@ -485,9 +548,6 @@ class PdfViewerWidget(QWidget):
             return "#000000"
 
     def paintEvent(self, event):
-        # update page base information
-        self.update_page_index()
-
         # Init painter.
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -514,15 +574,6 @@ class PdfViewerWidget(QWidget):
         # Render progress information.  # type: ignore
         painter.setPen(QColor(self.get_render_foreground_color()))
         self.update_page_progress(painter)
-        
-        if self.is_mark_search and not self.document.is_pdf and self.current_search_quads and self.current_search_page:
-            x0, y0, x1, y1 = self.current_search_quads.rect
-            page_offset = self.scroll_offset - (self.current_search_page) * self.scale * self.page_height
-            
-            x, y = (x0 - 10 + self.page_render_x/2) * self.scale, y1 * self.scale-page_offset
-            # print(self.current_search_quads.rect)
-            # pos = QPoint(x, y)
-            self.draw_arrow_indicator(painter, int(x), int(y)-3)
 
     def draw_presentation_page(self, painter, index):
         # Get page render information.
@@ -533,74 +584,51 @@ class PdfViewerWidget(QWidget):
             qpixmap = self.mark_select_char_area(index, qpixmap)
 
         # Init x and y coordinate.
-        self.page_render_x = (self.rect().width() - self.page_render_width) / 2
-        self.page_render_y = (self.rect().height() - self.page_render_height) / 2
+        page_render_x = (self.rect().width() - self.page_render_width) / 2
+        page_render_y = (self.rect().height() - self.page_render_height) / 2
 
         # Adjust coordinate and size when actual size smaller than visiable area.
         page_proportion = self.page_render_height * 1.0 / self.page_render_width
 
         if page_proportion > 1:
-            self.page_render_y = 0
+            page_render_y = 0
 
             if self.rect().height() > self.page_render_height:
                 self.page_render_height = self.rect().height()
                 self.page_render_width = self.page_render_height / page_proportion
         else:
-            self.page_render_x = 0
+            page_render_x = 0
 
             if self.rect().width() > self.page_render_width:
                 self.page_render_width = self.rect().width()
                 self.page_render_height = self.page_render_width * page_proportion
 
         # Draw page.
-        rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
+        rect = QRect(int(page_render_x), int(page_render_y), int(self.page_render_width), int(self.page_render_height))
         painter.drawRect(rect)
         painter.drawPixmap(rect, qpixmap)
 
     def draw_scroll_pages(self, painter):
-        # Record start page index before change page.
-        old_start_page_index = self.start_page_index
-
-        # Calcucate render range.
-        self.start_page_index = min(
-            int(self.scroll_offset * 1.0 / self.scale / self.page_height),
-            self.page_total_number - 1)
-
-        self.last_page_index = min(
-            int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height + 2),
-            self.page_total_number)
-
-        # We need adjust scroll offset if the actual height of the page is lower than the theoretical height returned by mupdf.
-        (_, _, page_render_height) = self.get_page_render_info(self.start_page_index)
-        if self.page_height * self.scale - page_render_height > 0:
-            self.scroll_offset += (self.start_page_index - old_start_page_index) * self.scroll_step_vertical
-
-            # Avoid scroll offset out of round.
-            self.scroll_offset = max(0, min(self.scroll_offset, self.max_scroll_offset()))
-
-        # Translate coordinate with scroll offset.
-        painter.translate(0,  -self.scroll_offset)
-
+        top_offset = self.scroll_offset
+        bottom_offset = self.scroll_offset + self.rect().height()
+        middle_offset = (top_offset + bottom_offset) / 2
+        
+        self.start_page_index, top_acc_y, self.top_y = self.offset_y_to_render_y(top_offset)
+        middle_page_index, middle_acc_y, middle_y = self.offset_y_to_render_y(middle_offset)
+        bottom_page_index, bottom_acc_y, self.bottom_y = self.offset_y_to_render_y(bottom_offset)
+        
+        self.current_page_index1 = middle_page_index + 1
+        self.last_page_index = bottom_page_index + 1 
+        
+        page_render_y = -self.top_y
+        painter.translate(0, page_render_y)
         for index in list(range(self.start_page_index, self.last_page_index)):
             # Draw page.
             self.draw_scroll_page(painter, index)
-
-            # Draw an indicator for synctex position
-            if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y is not None:
-                pos_y = int(self.page_render_y + self.synctex_info.pos_y * self.scale)
-                self.draw_arrow_indicator(painter, 15, pos_y)
-            elif self.link_page_num == index + 1 and self.link_page_offset_y is not None:
-                pos_x = int(self.page_render_x + self.link_page_offset_x)
-                pos_y = int(self.page_render_y + self.link_page_offset_y)
-                pos_x = max(0, pos_x - 30)
-                pos_y = pos_y + 12
-                self.draw_arrow_indicator(painter, pos_x, pos_y)
+            page_render_y = self.page_heights[index] * self.scale + self.page_padding
+            painter.translate(0, page_render_y)
 
     def draw_scroll_page(self, painter, index):
-        # Draw page padding.
-        if index != 0:
-            painter.translate(0, self.page_padding)
-
         # Get page render information.
         (qpixmap, self.page_render_width, self.page_render_height) = self.get_page_render_info(index)
 
@@ -609,32 +637,35 @@ class PdfViewerWidget(QWidget):
             qpixmap = self.mark_select_char_area(index, qpixmap.copy())
 
         # Init x coordinate.
-        self.page_render_x = (self.rect().width() - self.page_render_width) / 2
+        page_render_x = (self.rect().width() - self.page_render_width) / 2
 
         # Adjust x coordinate coordinate of render page.
         if self.read_mode == "fit_to_customize" and self.page_render_width >= self.rect().width():
             # limit the visiable area size
-            self.page_render_x = max(min(self.page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
-
-        # Render page with page index, scale and page height.
-        self.page_render_y = index * self.scale * self.page_height
-
-        # NOTE:
-        # We need translate coordinate inverse if the actual height of the page is lower than the theoretical height returned by mupdf.
-        # otherwise, padding between two pages will become too big.
-        height_deviation = (self.page_height * self.scale - self.page_render_height)
-
-        if self.scroll_offset < self.max_scroll_offset() - self.page_height:
-            # Scroll up deviation between actual height and render height.
-            painter.translate(0, -height_deviation)
-        else:
-            # Scroll down to avoid padding after last page.
-            painter.translate(0, height_deviation)
+            page_render_x = max(min(page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
 
         # Draw page.
-        rect = QRect(int(self.page_render_x), int(self.page_render_y), int(self.page_render_width), int(self.page_render_height))
+        rect = QRect(int(page_render_x), 0, int(self.page_render_width), int(self.page_render_height))
         painter.drawRect(rect)
         painter.drawPixmap(rect, qpixmap)
+        self.draw_page_extra(painter, index, page_render_x)
+        
+    def draw_page_extra(self, painter, index, page_render_x):
+        # Draw an indicator for synctex/link jump/search in epub
+        if self.synctex_info.page_num == index + 1 and self.synctex_info.pos_y is not None:
+            pos_y = int(self.synctex_info.pos_y * self.scale)
+            self.draw_arrow_indicator(painter, 15, pos_y)
+        elif self.link_page_num == index + 1 and self.link_page_offset_y is not None:
+            pos_x = int(page_render_x + self.link_page_offset_x)
+            pos_y = int(self.link_page_offset_y)
+            pos_x = max(0, pos_x - 30)
+            pos_y = pos_y + 12
+            self.draw_arrow_indicator(painter, pos_x, pos_y)
+        elif self.is_mark_search and not self.document.is_pdf and self.current_search_quads and self.current_search_page == index:
+            x0, y0, x1, y1 = self.current_search_quads.rect
+            window_y = int((y0+y1)/2 * self.scale)
+            window_x = int(max(0, page_render_x + x0 * self.scale - 30))
+            self.draw_arrow_indicator(painter, window_x, window_y)
 
     def draw_arrow_indicator(self, painter, x, y):
         from PyQt6.QtGui import QPolygon
@@ -660,7 +691,7 @@ class PdfViewerWidget(QWidget):
     def update_page_progress(self, painter):
         # Show in mode-line-position
         eval_in_emacs("eaf--pdf-update-position", [self.buffer_id,
-                                                   self.current_page_index,
+                                                   self.current_page_index1,
                                                    self.page_total_number])
 
         # Draw progress on page.
@@ -685,10 +716,10 @@ class PdfViewerWidget(QWidget):
                              self.get_page_progress())
 
     def get_page_progress(self):
-        progress_percent = int(self.current_page_index * 100 / self.page_total_number)
+        progress_percent = int(self.current_page_index1 * 100 / self.page_total_number)
 
         return "{}% [{}/{}]".format(progress_percent,
-                                      self.current_page_index,
+                                      self.current_page_index1,
                                       self.page_total_number)
 
     def build_context_wrap(f):    # type: ignore
@@ -739,22 +770,6 @@ class PdfViewerWidget(QWidget):
                 max_pos = (self.page_width * self.scale - self.rect().width())
                 self.update_horizontal_offset(max(min(new_pos , max_pos), -max_pos))    # type: ignore
 
-    def update_page_index(self):
-        # Don't adjust start_page_index if is in presentation mode.
-        if self.read_mode != "fit_to_presentation":
-            self.start_page_index = min(int(self.scroll_offset * 1.0 / self.scale / self.page_height),
-                                        self.page_total_number - 1)
-
-        if self.scroll_offset == 0:
-            self.current_page_index = 1
-        elif self.scroll_offset == self.max_scroll_offset():
-            self.current_page_index = self.page_total_number
-        else:
-            self.current_page_index = max(math.ceil(((self.scroll_offset + self.rect().height() * 5.0 / 9.0) / self.scale / self.page_height)),
-                                          self.start_page_index + 1)
-        self.last_page_index = min(int((self.scroll_offset + self.rect().height()) * 1.0 / self.scale / self.page_height) + 1,
-                                   self.page_total_number)
-
     def update_page_size(self, rect):
         current_page_index = self.start_page_index
         self.page_width = rect.width
@@ -787,7 +802,7 @@ class PdfViewerWidget(QWidget):
             self.scale_to_presentation()
 
     def max_scroll_offset(self):
-        max_scroll_offset = self.scale * self.page_height * self.page_total_number - self.rect().height()
+        max_scroll_offset = self.scale * self.page_heights_prefix_sum[-1] - self.rect().height()
         if max_scroll_offset < 0:
             max_scroll_offset = 0
         return max_scroll_offset
@@ -1093,7 +1108,7 @@ class PdfViewerWidget(QWidget):
         """
         for page_index in page_list:
             page = self.document.document[page_index]
-            if page_index < self.current_page_index:
+            if page_index < self.current_page_index1:
                 self.search_text_index = len(self.search_text_quads_list)
             
             if support_hit_max:
@@ -1564,7 +1579,7 @@ class PdfViewerWidget(QWidget):
         if (offset < self.scroll_offset + 0.15 * self.rect().height() or
             offset > self.scroll_offset + 0.85 * self.rect().height()):
             jump_offset = max(0, offset - 0.15 * self.rect().height())
-            max_offset = self.scale * self.page_total_number * self.page_height - self.rect().height()
+            max_offset = self.max_scroll_offset()
             if jump_offset < max_offset:
                 self.update_vertical_offset(jump_offset)
             else:
@@ -1595,7 +1610,7 @@ class PdfViewerWidget(QWidget):
             self.update()
 
             eval_in_emacs("eaf--pdf-update-position", [self.buffer_id,
-                                                       self.current_page_index,
+                                                       self.current_page_index1,
                                                        self.page_total_number])
 
     def update_horizontal_offset(self, new_offset):
@@ -1606,7 +1621,7 @@ class PdfViewerWidget(QWidget):
 
     def get_cursor_absolute_position(self):
         pos = self.mapFromGlobal(QCursor.pos()) # map global coordinate to widget coordinate.
-        ex, ey = pos.x(), pos.y()
+        ex, ey = pos.x(), pos.y() - self.emacs_tab_bar_height
 
         # set page coordinate
         render_width = self.page_width * self.scale
@@ -1619,14 +1634,8 @@ class PdfViewerWidget(QWidget):
 
         # computer absolute coordinate of page
         x = (ex - render_x) * 1.0 / self.scale
-        if ey + self.scroll_offset < (self.start_page_index + 1) * self.scale * self.page_height:
-            page_offset = self.scroll_offset - self.start_page_index * self.scale * self.page_height
-            page_index = self.start_page_index
-        else:
-            # if display two pages, pos.y() will add page_padding
-            page_offset = self.scroll_offset - (self.start_page_index + 1) * self.scale * self.page_height - self.page_padding
-            page_index = self.start_page_index + 1
-        y = (ey + page_offset) * 1.0 / self.scale
+        
+        page_index, y = self.window_y_to_page_y(ey)
 
         temp = x
         if self.rotation == 90:
@@ -1662,7 +1671,7 @@ class PdfViewerWidget(QWidget):
         word_offset = 10 # 10 pixel is enough for word intersect operation
         draw_rect = fitz.Rect(ex, ey, ex + word_offset, ey + word_offset)
 
-        set_page_crop_box(page)(page.rect)
+        page.set_cropbox(page.rect)
         page_words = page.get_text_words()
         rect_words = [w for w in page_words if fitz.Rect(w[:4]).intersects(draw_rect)]
         if rect_words:

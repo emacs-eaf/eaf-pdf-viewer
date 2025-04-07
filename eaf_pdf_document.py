@@ -24,19 +24,6 @@ import fitz
 from core.utils import PostGui, get_emacs_vars, message_to_emacs
 from eaf_pdf_page import PdfPage
 
-
-def get_page_crop_box(page):
-    if hasattr(page, "page_cropbox"):
-        return page.page_cropbox
-    else:
-        return page.page_cropbox
-
-def set_page_crop_box(page):
-    if hasattr(page, "set_cropbox"):
-        return page.set_cropbox
-    else:
-        return page.set_cropbox
-
 class PdfDocument(fitz.Document):
     def __init__(self, document):
         self.document = document
@@ -148,7 +135,7 @@ class PdfDocument(fitz.Document):
         if self.is_pdf:
             if self._is_trim_margin:
                 return self._document_page_clip.width
-            return get_page_crop_box(self.document)(0).width
+            return self.document.page_cropbox(0).width
         else:
             return self[0].clip.width
 
@@ -156,9 +143,23 @@ class PdfDocument(fitz.Document):
         if self.is_pdf:
             if self._is_trim_margin:
                 return self._document_page_clip.height
-            return get_page_crop_box(self.document)(0).height
+            return self.document.page_cropbox(0).height
         else:
             return self[0].clip.height
+        
+    def get_all_widths_heights(self):
+        heights = []
+        page_cnts = self.document.page_count
+        if not self.document.is_pdf:
+            height = self[0].clip.height
+            width = self[0].clip.width
+            return [width] * page_cnts, [height] * page_cnts
+        heights = []
+        widths = []
+        for i in range(page_cnts):
+            heights.append(self.document.page_cropbox(i).height)
+            widths.append(self.document.page_cropbox(i).width)
+        return widths, heights
 
     def watch_page_size_change(self, callback):
         self._document_page_change = callback

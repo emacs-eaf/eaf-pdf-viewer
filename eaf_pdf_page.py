@@ -98,9 +98,6 @@ class PdfPage(fitz.Page):
                 # cause the select text failed
                 set_page_crop_box(self.page)(self.clip)
                 d = get_page_text(self.page)("rawdict")
-                # cancel the cropbox, if not, will cause the pixmap set cropbox
-                # don't begin on top-left(0, 0), page display black margin
-                set_page_crop_box(self.page)(fitz.Rect(self.page.mediabox.x0,0,self.page.mediabox.x1,self.page.mediabox.y1-self.page.mediabox.y0))
                 return d
             except:
                 return get_page_text(self.page)("rawdict")
