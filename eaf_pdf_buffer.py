@@ -80,7 +80,8 @@ class SearchAdapter(QObject):
         
     def search_text(self, search_term):
         self.current_search_term = search_term
-        dynamic_delay = self.search_delay 
+        char_delay = 0.8/len(search_term) if len(search_term) > 0 else 0
+        dynamic_delay = self.search_delay + char_delay
 
         self.debounce_timer.stop()
         self.debounce_timer.start(int(dynamic_delay * 1000))
