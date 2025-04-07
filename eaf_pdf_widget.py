@@ -606,7 +606,7 @@ class PdfViewerWidget(QWidget):
 
         # Select char area when is_select_mode is True.
         if self.is_select_mode:
-            qpixmap = self.mark_select_char_area(index, qpixmap)
+            qpixmap = self.mark_select_char_area(index, qpixmap.copy())
 
         # Init x coordinate.
         self.page_render_x = (self.rect().width() - self.page_render_width) / 2
@@ -1384,15 +1384,10 @@ class PdfViewerWidget(QWidget):
 
         qp = QPainter(pixmap)
         qp.setRenderHint(QPainter.RenderHint.Antialiasing)
-        qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
-        qp.save()
-
-        # clear old highlight
-        if page_index in self.select_area_annot_quad_cache_dict:
-            old_quads = self.select_area_annot_quad_cache_dict[page_index]
-            foreground_color = "#000000" if self.inverted_mode else "#FFFFFF"
-            for quad in old_quads:
-                qp.fillRect(quad_to_qrect(quad), QColor(foreground_color))
+        if self.pdf_dark_mode:
+            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
+        else:
+            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationAtop)
 
         # update select area quad list
         self.update_select_char_area()
@@ -1403,7 +1398,7 @@ class PdfViewerWidget(QWidget):
             for quad in quads:
                 qp.fillRect(quad_to_qrect(quad), QColor(self.text_highlight_annot_color))
 
-        qp.restore()
+        self.select_area_annot_quad_cache_dict.clear()
         return pixmap
 
     def delete_all_mark_select_area(self):
