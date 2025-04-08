@@ -414,7 +414,7 @@ class AppBuffer(Buffer):
         return str(self.buffer_widget.start_page_index + 1)
 
     def get_page_text(self, page_index=None):
-        page_index = page_index if page_index is not None else self.buffer_widget.current_page_index - 1
+        page_index = page_index if page_index is not None else self.buffer_widget.current_page_index1 - 1
         page = self.buffer_widget.document[page_index]
         return page.get_text()
 

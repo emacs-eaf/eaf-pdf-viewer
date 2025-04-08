@@ -151,6 +151,11 @@ Non-nil means don't invert images."
   :type 'string
   :group 'eaf-pdf-viewer)
 
+(defcustom eaf-pdf-click-to-copy nil
+  "if it is t, selecting text and then clicking elsewhere will automatically copy it to the clipboard."
+  :type 'boolean
+  :group 'eaf-pdf-viewer)
+
 (defcustom eaf-pdf-viewer-keybinding
   '(("j" . "scroll_up")
     ("<down>" . "scroll_up")
@@ -859,6 +864,7 @@ This function works best if paired with a fuzzy search package."
         (eaf-pdf-narrow--ivy cache-file-name eaf-buffer-id obj current-page))
        (t
         (eaf-call-async "execute_function" eaf-buffer-id "search_text_forward" ))))))
+
 
 ;;;; Register as module for EAF
 (add-to-list 'eaf-app-binding-alist '("pdf-viewer" . eaf-pdf-viewer-keybinding))
