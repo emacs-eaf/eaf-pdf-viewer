@@ -1719,7 +1719,13 @@ class PdfViewerWidget(QWidget):
 
             # cleanup select mode on another click
             if self.is_select_mode:
+                click_to_copy, = get_emacs_vars(["eaf-pdf-click-to-copy"])
+                if click_to_copy:
+                    content = self.parse_select_char_list()
+                    eval_in_emacs('kill-new', [content])
+                    message_to_emacs(content)
                 self.cleanup_select()
+                
 
             if self.is_popup_text_annot_mode:
                 if event.button() != Qt.MouseButton.LeftButton:

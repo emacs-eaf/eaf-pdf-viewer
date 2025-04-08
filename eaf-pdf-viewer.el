@@ -151,6 +151,11 @@ Non-nil means don't invert images."
   :type 'string
   :group 'eaf-pdf-viewer)
 
+(defcustom eaf-pdf-click-to-copy nil
+  "if it is t, selecting text and then clicking elsewhere will automatically copy it to the clipboard."
+  :type 'boolean
+  :group 'eaf-pdf-viewer)
+
 (defcustom eaf-pdf-viewer-keybinding
   '(("j" . "scroll_up")
     ("<down>" . "scroll_up")

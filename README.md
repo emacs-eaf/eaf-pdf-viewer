@@ -134,3 +134,8 @@ Override this behavior
 ```Elisp
   (setq eaf-pdf-text-highlight-annot-color "#fa8500") # ;; default #ffd815
 ```
+
+- click after select to copy text
+```Elisp
+  (setq eaf-pdf-click-to-copy t) # ;; default nil
+```
