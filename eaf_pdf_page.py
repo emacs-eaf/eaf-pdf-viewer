@@ -154,6 +154,82 @@ class PdfPage(fitz.Page):
     def get_page_char_rect_list(self):
         return self._page_char_rect_list
 
+    def _get_intersect_block(self, rect):
+        '''Get intersect block by rect.'''
+        for block in self._page_rawdict["blocks"]:
+            # ignore image bbox
+            if block["type"] != 0:
+                continue
+            
+            block_rect = fitz.Rect(block["bbox"])
+            if block_rect.intersects(rect):
+                return block
+        return None
+
+    def _get_intersect_line(self, block, rect):
+        '''Get intersect line by rect.'''
+        for line in block["lines"]:
+            line_rect = fitz.Rect(line["bbox"])
+            if line_rect.intersects(rect):
+                return line
+        return None
+    
+    def _get_intersect_span(self, line, rect):
+        '''Get intersect span by rect.'''
+        for span in line["spans"]:
+            span_rect = fitz.Rect(span["bbox"])
+            if span_rect.intersects(rect):
+                return span
+        return None
+    
+    def _get_intersect_char(self, span, rect):
+        '''Get intersect char by rect.'''
+        for char in span["chars"]:
+            char_rect = fitz.Rect(char["bbox"])
+            if char_rect.intersects(rect):
+                return char
+        return None
+    
+    def is_char_at_point(self, x, y):
+        '''return if there is a char under the x and y coordinate.'''
+        if x and y is None:
+            return None
+
+        offset = 2
+        rect = fitz.Rect(x, y, x + offset, y + offset)
+        intersected_block = self._get_intersect_block(rect)
+        if intersected_block is None:
+            return False
+        intersected_line = self._get_intersect_line(intersected_block, rect)
+        if intersected_line is None:
+            return False
+        intersected_span = self._get_intersect_span(intersected_line, rect)
+        if intersected_span is None:
+            return False
+        intersected_char = self._get_intersect_char(intersected_span, rect)
+        if intersected_char is None:
+            return False
+        return True
+    
+    def get_line_at_point(self, x, y):
+        '''get the line under the x and y coordinate.'''
+        if x and y is None:
+            return None
+
+        offset = 2
+        rect = fitz.Rect(x, y, x + offset, y + offset)
+        intersected_block = self._get_intersect_block(rect)
+        if intersected_block is None:
+            return False
+        intersected_line = self._get_intersect_line(intersected_block, rect)
+        if intersected_line is None:
+            return False
+        words = []
+        for span in intersected_line["spans"]:
+            for char in span["chars"]:
+                words.append(char["c"])
+        return "".join(words)
+         
     def get_page_char_rect_index(self, x, y):
         '''According X and Y coordinate return index of char in char rect list.'''
         if x and y is None:

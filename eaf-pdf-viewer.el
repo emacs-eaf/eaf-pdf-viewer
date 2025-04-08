@@ -151,12 +151,6 @@ Non-nil means don't invert images."
   :type 'string
   :group 'eaf-pdf-viewer)
 
-(defcustom eaf-pdf-tab-bar-height-in-pixels
-  (if tab-bar-mode (* (line-pixel-height) (tab-bar-height)) 0)
-  "the height of the tab bar in pixels. users should not change tab-bar height when using eaf"
-  :type 'integer
-  :group 'eaf-pdf-viewer)
-
 (defcustom eaf-pdf-viewer-keybinding
   '(("j" . "scroll_up")
     ("<down>" . "scroll_up")
