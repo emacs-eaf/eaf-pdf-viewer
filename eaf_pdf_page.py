@@ -400,7 +400,7 @@ class PdfPage(fitz.Page):
                 self.page.delete_annot(annot)
             self._mark_link_annot_list = []
             
-    def mark_search_text(self, keyword, current_quads):
+    def mark_search_text(self, keyword, current_quad):
         if not self.is_pdf:
             # add_highlight_annot is only for pdf
             return []
@@ -411,10 +411,10 @@ class PdfPage(fitz.Page):
             quads_list = self.page.search_for(keyword, quads=True)
 
         if quads_list:
-            for quads in quads_list:
-                annot = self.page.add_highlight_annot(quads)
+            for quad in quads_list:
+                annot = self.page.add_highlight_annot(quad)
                 annot.parent = self.page
-                if quads == current_quads:
+                if quad == current_quad:
                     qcolor = QColor("#f28100")
                     annot.set_colors(stroke=qcolor.getRgbF()[0:3])
                     annot.update()
