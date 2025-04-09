@@ -1629,6 +1629,7 @@ class PdfViewerWidget(QWidget):
         return 100.0 * self.scroll_offset / (self.max_scroll_offset() + self.rect().height())
 
     def update_vertical_offset(self, new_offset):
+        new_offset = max(0, min(new_offset, self.max_scroll_offset()))
         eval_in_emacs("eaf--clear-message", [])
         if self.scroll_offset != new_offset:
             self.scroll_offset = new_offset
