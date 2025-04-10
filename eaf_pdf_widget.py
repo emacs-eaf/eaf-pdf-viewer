@@ -29,7 +29,7 @@ from eaf_pdf_annot import AnnotAction
 from eaf_pdf_document import PdfDocument
 from eaf_pdf_utils import support_hit_max
 from PyQt6.QtCore import QEvent, QPoint, QRect, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QCursor, QFont, QPainter, QPalette
+from PyQt6.QtGui import QColor, QCursor, QFont, QPainter, QPalette, QBrush
 from PyQt6.QtWidgets import QApplication, QToolTip, QWidget
 import os
 from pathlib import Path
@@ -597,7 +597,7 @@ class PdfViewerWidget(QWidget):
 
         # Select char area when is_select_mode is True.
         if self.is_select_mode:
-            qpixmap = self.mark_select_char_area(index, qpixmap)
+            qpixmap = self.mark_select_obj_area(index, qpixmap)
 
         # Init x and y coordinate.
         page_render_x = (self.rect().width() - self.page_render_width) / 2
@@ -654,7 +654,7 @@ class PdfViewerWidget(QWidget):
 
         # Select char area when is_select_mode is True.
         if self.is_select_mode:
-            qpixmap = self.mark_select_char_area(index, qpixmap.copy())
+            qpixmap = self.mark_select_obj_area(index, qpixmap.copy())
 
         # Init x coordinate.
         page_render_x = (self.rect().width() - self.page_render_width) / 2
@@ -1272,6 +1272,37 @@ class PdfViewerWidget(QWidget):
 
         return page_dict
 
+    def get_select_obj_list(self):
+        page_dict = {}
+        if self.start_char_rect_index and self.last_char_rect_index:
+            # start and last page
+            sp_index = min(self.start_char_page_index, self.last_char_page_index)    # type: ignore
+            lp_index = max(self.start_char_page_index, self.last_char_page_index)    # type: ignore
+            for page_index in range(sp_index, lp_index + 1):    # type: ignore
+                # handle forward select and backward select on multi page.
+                # backward select on multi page.
+                if self.start_char_page_index > self.last_char_page_index:    # type: ignore
+                    sc = self.last_char_rect_index if page_index == sp_index else (0, 0, 0, 0)
+                    lc = self.start_char_rect_index if page_index == lp_index else (-1, -1, -1, -1)
+                else:
+                    # forward select on multi page.
+                    sc = self.start_char_rect_index if page_index == sp_index else (0, 0, 0, 0)
+                    lc = self.last_char_rect_index if page_index == lp_index else (-1, -1, -1, -1)
+
+                # handle forward select and backward select on same page.
+                
+                if -1 in sc:
+                    sc_index, lc_index = lc, sc
+                elif -1 in lc:
+                    sc_index, lc_index = sc, lc
+                else:
+                    sc_index = min(sc, lc)
+                    lc_index = max(sc, lc)
+
+                page_dict[page_index] = self.document[page_index].get_obj_from_range(sc_index, lc_index)
+
+        return page_dict
+
     def parse_select_char_list(self):
         string = ""
         page_dict = self.get_select_char_list()
@@ -1279,6 +1310,16 @@ class PdfViewerWidget(QWidget):
             if chars_list:
                 string += "".join(list(map(lambda x: x["c"], chars_list)))
 
+                if index != 0:
+                    string += "\n\n"    # add new line on page end.
+        return string
+
+    def parse_select_obj_list(self):
+        string = ""
+        page_dict = self.get_select_char_list()
+        for index, obj_list in enumerate(page_dict.values()):
+            if obj_list:
+                string += self.document[index].parse_obj_list(obj_list)
                 if index != 0:
                     string += "\n\n"    # add new line on page end.
         return string
@@ -1420,6 +1461,32 @@ class PdfViewerWidget(QWidget):
 
             # refresh select quad
             self.select_area_annot_quad_cache_dict[page_index] = quad_list
+            
+    def update_select_obj_area(self):
+        page_dict = self.get_select_obj_list()
+        rectify = lambda x0, y0, x1, y1: fitz.Rect(x0-2, y0-1, x1+2, y1+1)
+        for page_index, chars_list in page_dict.items():         
+            rect_list = []
+            if not chars_list:
+                continue
+            
+            line_rect_list = []
+            line_x0, line_y0, line_x1, line_y1 = chars_list[0]["bbox"]
+            for obj in chars_list:
+                x0, y0, x1, y1 = obj["bbox"]
+                if abs((y0+y1) / 2 - (line_y0 + line_y1)/2) < 3:
+                    # The same line
+                    line_x0 = min(line_x0, x0)
+                    line_y0 = min(line_y0, y0)
+                    line_x1 = max(line_x1, x1)
+                    line_y1 = max(line_y1, y1)
+                else:
+                    # The next line
+                    line_rect_list.append(rectify(line_x0, line_y0, line_x1, line_y1))
+                    line_x0, line_y0, line_x1, line_y1 = x0, y0, x1, y1
+            line_rect_list.append(rectify(line_x0, line_y0, line_x1, line_y1))  
+            # refresh select quad
+            self.select_area_annot_quad_cache_dict[page_index] = line_rect_list
 
     def mark_select_char_area(self, page_index, pixmap):
         def quad_to_qrect(quad):
@@ -1442,6 +1509,33 @@ class PdfViewerWidget(QWidget):
             quads = self.select_area_annot_quad_cache_dict[page_index]
             for quad in quads:
                 qp.fillRect(quad_to_qrect(quad), QColor(self.text_highlight_annot_color))
+
+        self.select_area_annot_quad_cache_dict.clear()
+        return pixmap
+
+    def mark_select_obj_area(self, page_index, pixmap):
+        def rect_to_qrect(rect):
+            scaled =  rect * self.scale * self.devicePixelRatioF()
+            return QRect(int(scaled.x0), int(scaled.y0), int(scaled.width), int(scaled.height))
+
+        qp = QPainter(pixmap)
+        qp.setRenderHint(QPainter.RenderHint.Antialiasing)
+        qp.setBrush(QBrush(QColor(self.text_highlight_annot_color)))
+        qp.setPen(Qt.PenStyle.NoPen)
+        if self.pdf_dark_mode:
+            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
+        else:
+            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationAtop)
+
+        # update select area quad list
+        self.update_select_obj_area()
+
+        # draw new highlight
+        if page_index in self.select_area_annot_quad_cache_dict:
+            rects = self.select_area_annot_quad_cache_dict[page_index]
+            for rect in rects:
+                # qp.fillRect(rect_to_qrect(rect), QColor(self.text_highlight_annot_color))
+                qp.drawRoundedRect(rect_to_qrect(rect), 2.5, 2.5)
 
         self.select_area_annot_quad_cache_dict.clear()
         return pixmap
@@ -1732,7 +1826,7 @@ class PdfViewerWidget(QWidget):
             if self.is_select_mode:
                 click_to_copy, = get_emacs_vars(["eaf-pdf-click-to-copy"])
                 if click_to_copy:
-                    content = self.parse_select_char_list()
+                    content = self.parse_select_obj_list()
                     eval_in_emacs('kill-new', [content])
                     message_to_emacs(content)
                 self.cleanup_select()
@@ -1913,7 +2007,7 @@ class PdfViewerWidget(QWidget):
         ex, ey, page_index = self.get_cursor_absolute_position()
         if page_index is None:
             return
-        rect_index = self.document[page_index].get_page_char_rect_index(ex, ey)
+        rect_index = self.document[page_index].get_page_obj_rect_index(ex, ey)
         if rect_index:
             if self.start_char_rect_index is None or self.start_char_page_index is None:
                 self.start_char_rect_index, self.start_char_page_index = rect_index, page_index

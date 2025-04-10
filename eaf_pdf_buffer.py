@@ -387,14 +387,14 @@ class AppBuffer(Buffer):
 
     def copy_select(self):
         if self.buffer_widget.is_select_mode:
-            content = self.buffer_widget.parse_select_char_list()
+            content = self.buffer_widget.parse_select_obj_list()
             eval_in_emacs('kill-new', [content])
             message_to_emacs(content)
             self.buffer_widget.cleanup_select()
 
     def get_select(self):
         if self.buffer_widget.is_select_mode:
-            content = self.buffer_widget.parse_select_char_list()
+            content = self.buffer_widget.parse_select_obj_list()
             self.buffer_widget.cleanup_select()
             return content
         else:
