@@ -81,8 +81,10 @@ class PdfPage(fitz.Page):
         self._mark_jump_annot_list = []
 
         self._page_rawdict = self._init_page_rawdict()
-        self._page_char_rect_list = self._init_page_char_rect_list()
+        # self._page_char_rect_list = self._init_page_char_rect_list()
         self._tight_margin_rect = self._init_tight_margin()
+        
+        self.hierarchy = ["", "blocks", "lines", "spans", "chars"]
 
         self.has_annot = page.first_annot
         self.hovered_annot = None
@@ -156,80 +158,75 @@ class PdfPage(fitz.Page):
 
     def _get_intersect_block(self, rect):
         '''Get intersect block by rect.'''
-        for block in self._page_rawdict["blocks"]:
+        for i, block in enumerate(self._page_rawdict["blocks"]):
             # ignore image bbox
             if block["type"] != 0:
                 continue
             
             block_rect = fitz.Rect(block["bbox"])
             if block_rect.intersects(rect):
-                return block
-        return None
+                return i, block
+        return None, None
 
     def _get_intersect_line(self, block, rect):
         '''Get intersect line by rect.'''
-        for line in block["lines"]:
+        for i, line in enumerate(block["lines"]):
             line_rect = fitz.Rect(line["bbox"])
             if line_rect.intersects(rect):
-                return line
-        return None
+                return i, line
+        return None, None
     
     def _get_intersect_span(self, line, rect):
         '''Get intersect span by rect.'''
-        for span in line["spans"]:
+        for i, span in enumerate(line["spans"]):
             span_rect = fitz.Rect(span["bbox"])
             if span_rect.intersects(rect):
-                return span
-        return None
+                return i, span
+        return None, None
     
     def _get_intersect_char(self, span, rect):
         '''Get intersect char by rect.'''
-        for char in span["chars"]:
+        for i, char in enumerate(span["chars"]):
             char_rect = fitz.Rect(char["bbox"])
             if char_rect.intersects(rect):
-                return char
-        return None
+                return i, char
+        return None, None
     
     def is_char_at_point(self, x, y):
         '''return if there is a char under the x and y coordinate.'''
         if x and y is None:
             return None
 
-        offset = 2
-        rect = fitz.Rect(x, y, x + offset, y + offset)
-        intersected_block = self._get_intersect_block(rect)
+        offset = 5
+        rect = fitz.Rect(x-1, y, x + offset, y + offset)
+        block_index, intersected_block = self._get_intersect_block(rect)
         if intersected_block is None:
-            return False
-        intersected_line = self._get_intersect_line(intersected_block, rect)
+            return None
+        line_index, intersected_line = self._get_intersect_line(intersected_block, rect)
         if intersected_line is None:
-            return False
-        intersected_span = self._get_intersect_span(intersected_line, rect)
+            return None
+        span_index, intersected_span = self._get_intersect_span(intersected_line, rect)
         if intersected_span is None:
-            return False
-        intersected_char = self._get_intersect_char(intersected_span, rect)
+            return None
+        char_index, intersected_char = self._get_intersect_char(intersected_span, rect)
         if intersected_char is None:
-            return False
-        return True
+            return None
+        return block_index, line_index, span_index, char_index
     
     def get_line_at_point(self, x, y):
         '''get the line under the x and y coordinate.'''
-        if x and y is None:
+        index = self.is_char_at_point(x, y)
+        if index is None:
             return None
-
-        offset = 2
-        rect = fitz.Rect(x, y, x + offset, y + offset)
-        intersected_block = self._get_intersect_block(rect)
-        if intersected_block is None:
-            return False
-        intersected_line = self._get_intersect_line(intersected_block, rect)
-        if intersected_line is None:
-            return False
-        words = []
-        for span in intersected_line["spans"]:
-            for char in span["chars"]:
-                words.append(char["c"])
-        return "".join(words)
-         
+        block_index, line_index, span_index, char_index = index
+        intersected_block = self._page_rawdict["blocks"][block_index]
+        intersected_line = intersected_block["lines"][line_index]
+        line = []
+        for i, span in enumerate(intersected_line["spans"]):
+            for j, char in enumerate(span["chars"]):
+                line.append(char["c"])
+        return "".join(line)
+    
     def get_page_char_rect_index(self, x, y):
         '''According X and Y coordinate return index of char in char rect list.'''
         if x and y is None:
@@ -241,6 +238,83 @@ class PdfPage(fitz.Page):
             if fitz.Rect(char["bbox"]).intersects(rect):
                 return char_index
         return None
+      
+    def get_page_obj_rect_index(self, x, y):
+        '''According X and Y coordinate return index of char in raw_dict.'''
+        return self.is_char_at_point(x, y)
+       
+    
+    def get_obj_from_range(self, start, end):
+        """
+        start and end are 4-tuple (block_index, line_index, span_index, char_index)
+        """
+        obj_list = []
+        self._get_obj_from_range(self._page_rawdict["blocks"], start, end, obj_list)
+        return obj_list
+     
+    
+    def _get_obj_from_range(self, structs, start, end, collections):      
+        """
+        pre-order traverse the page rawdict and get the objects in the range of start and end.
+        """    
+        remain_level = len(start) - 1
+        child_name = self.hierarchy[-remain_level]
+        
+        start_idx, end_idx = start[0], end[0]
+        
+        if end_idx == -1:
+            end_idx = len(structs) - 1
+            
+        if remain_level == 0:
+            # collect in the first block
+            collections.extend(structs[start_idx: end_idx + 1])
+            return
+            
+        if start_idx == end_idx:
+            # collect in the first block
+            if child_name in structs[start_idx]:
+                self._get_obj_from_range(structs[start_idx][child_name], start[1:], end[1:], collections)
+            return
+
+        if child_name in structs[start_idx]:
+            self._get_obj_from_range(structs[start_idx][child_name], start[1:], [-1]*remain_level, collections)
+        # collect in the middle blocks
+        for blk in range(start_idx + 1, end_idx):
+            collections.append(structs[blk])
+            
+        if child_name in structs[end_idx]:
+            self._get_obj_from_range(structs[end_idx][child_name], [0] * remain_level, end[1:], collections)
+    
+    def parse_obj_list(self, obj_list):
+        """
+        obj_list is a list of objects in the page rawdict.
+        """
+        chars = []
+        def _parse_line(line):
+            res = []
+            for span in line["spans"]:
+                if "chars" in span:
+                    res.extend([x["c"] for x in span["chars"]])
+            return res
+        
+        def _parse_block(block):
+            res = []
+            for line in block["lines"]:
+                res.extend(_parse_line(line))
+            return res
+                    
+        for obj in obj_list:
+            if "c" in obj:
+                chars.append(obj["c"])
+            elif "chars" in obj:
+                chars.extend([x["c"] for x in obj["chars"]])
+            elif "spans" in obj:
+                chars.extend(_parse_line(obj))
+            elif "lines" in obj:
+                chars.extend(_parse_block(obj))
+                
+        return "".join(chars)
+        
 
     def set_rotation(self, rotation):
         set_page_rotation(self.page)(rotation)
