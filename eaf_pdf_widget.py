@@ -209,6 +209,7 @@ class PdfViewerWidget(QWidget):
         self.saved_pos_sequence = []
         self.saved_pos_index = -1
         self.remember_offset = None
+        self.last_percentage = -1
 
         self.start_page_index = 0
         self.start_page_index_before_presentation = 0
@@ -853,6 +854,15 @@ class PdfViewerWidget(QWidget):
         if self.start_page_index > 0:
             self.start_page_index = self.start_page_index - 1
             self.update()
+            
+    def mark_position(self, percentage=-1):
+        self.last_percentage = percentage if percentage != -1 else self.current_percent()
+        
+    def toggle_last_position(self):
+        if self.last_percentage != -1:
+            last_percentage = self.last_percentage
+            self.mark_position()
+            self.jump_to_percent(last_percentage) 
 
     @interactive
     def scroll_up(self):
@@ -898,12 +908,12 @@ class PdfViewerWidget(QWidget):
 
     @interactive
     def scroll_to_begin(self):
-        self.buffer.mark_position()
+        self.mark_position()
         self.update_vertical_offset(0)    # type: ignore
 
     @interactive
     def scroll_to_end(self):
-        self.buffer.mark_position()
+        self.mark_position()
         self.update_vertical_offset(self.max_scroll_offset())    # type: ignore
 
     @interactive
@@ -1094,7 +1104,7 @@ class PdfViewerWidget(QWidget):
         if "page" in link:
             self.cleanup_links()
             self.save_current_pos()
-            self.buffer.mark_position()
+            self.mark_position()
 
             target_point = link["to"]
             page_y_from_top = self.page_height - target_point.y if self.document.is_pdf else target_point.y
