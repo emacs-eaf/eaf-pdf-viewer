@@ -79,6 +79,8 @@ class PdfPage(fitz.Page):
         self._mark_link_annot_list = []
         self._mark_search_annot_list = []
         self._mark_jump_annot_list = []
+        self._links = self.page.get_links()
+        self._annots = self.page.annots()
 
         self._page_rawdict = self._init_page_rawdict()
         # self._page_char_rect_list = self._init_page_char_rect_list()
@@ -163,32 +165,28 @@ class PdfPage(fitz.Page):
             if block["type"] != 0:
                 continue
             
-            block_rect = fitz.Rect(block["bbox"])
-            if block_rect.intersects(rect):
+            if self._is_intersects(block["bbox"], rect):
                 return i, block
         return None, None
 
     def _get_intersect_line(self, block, rect):
         '''Get intersect line by rect.'''
         for i, line in enumerate(block["lines"]):
-            line_rect = fitz.Rect(line["bbox"])
-            if line_rect.intersects(rect):
+            if self._is_intersects(line["bbox"], rect):
                 return i, line
         return None, None
     
     def _get_intersect_span(self, line, rect):
         '''Get intersect span by rect.'''
         for i, span in enumerate(line["spans"]):
-            span_rect = fitz.Rect(span["bbox"])
-            if span_rect.intersects(rect):
+            if self._is_intersects(span["bbox"], rect):
                 return i, span
         return None, None
     
     def _get_intersect_char(self, span, rect):
         '''Get intersect char by rect.'''
         for i, char in enumerate(span["chars"]):
-            char_rect = fitz.Rect(char["bbox"])
-            if char_rect.intersects(rect):
+            if self._is_intersects(char["bbox"], rect):
                 return i, char
         return None, None
     
@@ -198,7 +196,7 @@ class PdfPage(fitz.Page):
             return None
 
         offset = 5
-        rect = fitz.Rect(x-1, y, x + offset, y + offset)
+        rect = (x-1, y, x + offset, y + offset)
         block_index, intersected_block = self._get_intersect_block(rect)
         if intersected_block is None:
             return None
@@ -387,13 +385,13 @@ class PdfPage(fitz.Page):
 
         return pixmap
 
-    def can_update_annot(self, page_x, page_y):
+    def can_update_annot(self, ex, ey):
         if not self.has_annot:
             return None, False
 
-        point = fitz.Point(page_x, page_y)
-        for annot in self.page.annots():
-            if point in annot.rect:
+        for annot in self._annots:
+            x0, y0, x1, y1 = annot.rect
+            if ex >= x0 and ex <= x1 and ey >= y0 and ey <= y1:
                 self.hovered_annot = annot
                 return annot, True
 
@@ -524,3 +522,21 @@ class PdfPage(fitz.Page):
         for annot in self._mark_jump_annot_list:
             self.page.delete_annot(annot)
         self._mark_jump_annot_list = []
+
+    def get_links(self):
+        return self._links
+    
+    def _is_intersects(self, rect1, rect2):
+        x0, y0, x1, y1 = rect1
+        xx0, yy0, xx1, yy1 = rect2
+
+        # Check if there is NO overlap in the x-dimension
+        if x1 <= xx0 or x0 >= xx1:
+            return False
+
+        # Check if there is NO overlap in the y-dimension
+        if y1 <= yy0 or y0 >= yy1:
+            return False
+
+        # If there is overlap in both x and y dimensions, then the rectangles intersect
+        return True

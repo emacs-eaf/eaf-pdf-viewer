@@ -182,7 +182,14 @@ class PdfViewerWidget(QWidget):
 
         # Padding between pages.
         self.page_padding = 10
+        self.padding_color = QColor("#333333") #self.get_render_background_color()
 
+        # Inverted mode.
+        self.inverted_mode = False
+
+        # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
+        self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.is_pdf
+        
         # Fill app background color
         self.fill_background()
 
@@ -219,19 +226,13 @@ class PdfViewerWidget(QWidget):
 
         self.load_document(url)
 
-        # Inverted mode.
-        self.inverted_mode = False
-
-        # Inverted mode exclude image. (current exclude image inner implement use PDF Only method)
-        self.inverted_image_mode = not self.pdf_dark_exclude_image and self.document.is_pdf
-
         # synctex init page
         if self.synctex_info.page_num is not None:
             self.jump_to_page(self.synctex_info.page_num)    # type: ignore
 
     def fill_background(self):
         pal = self.palette()
-        pal.setColor(QPalette.ColorRole.Window, self.background_color)
+        pal.setColor(QPalette.ColorRole.Window, QColor(self.get_render_background_color()))
         self.setAutoFillBackground(True)
         self.setPalette(pal)
 
@@ -569,11 +570,10 @@ class PdfViewerWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
         painter.save()
-
-        # Draw background.
-        color = QColor(self.get_render_background_color())
-        painter.setBrush(color)
-        painter.setPen(color)
+        
+        # for padding
+        painter.setBrush(self.padding_color)
+        painter.setPen(Qt.PenStyle.NoPen)
 
         # Draw page.
         if self.read_mode == "fit_to_presentation":
@@ -665,9 +665,13 @@ class PdfViewerWidget(QWidget):
             page_render_x = max(min(page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
 
         # Draw page.
-        rect = QRect(int(page_render_x), 0, int(self.page_render_width), int(self.page_render_height))
-        painter.drawRect(rect)
+        x, y, w, h = int(page_render_x), 0, int(self.page_render_width), int(self.page_render_height)
+        rect = QRect(x, y, w, h)
         painter.drawPixmap(rect, qpixmap)
+        
+        # Draw page padding.
+        padding_rec = QRect(x, y+h, w, int(self.page_padding))
+        painter.drawRect(padding_rec)
         self.draw_page_extra(painter, index, page_render_x)
         return self.page_render_height + self.page_padding
         
@@ -1566,8 +1570,8 @@ class PdfViewerWidget(QWidget):
 
         return None
 
-    def check_annot(self):
-        ex, ey, page_index = self.get_cursor_absolute_position()    # type: ignore
+    def check_annot(self, xy_page = None):
+        ex, ey, page_index = xy_page if xy_page else self.get_cursor_absolute_position()
         if page_index is None:
             return
 
@@ -1639,7 +1643,7 @@ class PdfViewerWidget(QWidget):
         self.moved_annot_page = (None, None)
         self.disable_move_text_annot_mode()
 
-    def hover_link(self):
+    def hover_link(self, xy_page = None):
         curtime = time.time()
         if curtime - self.scroll_wheel_lasttime <= 0.5:
             return None
@@ -1647,7 +1651,7 @@ class PdfViewerWidget(QWidget):
         if self.is_move_text_annot_mode:
             return None
 
-        ex, ey, page_index = self.get_cursor_absolute_position()
+        ex, ey, page_index = xy_page if xy_page else self.get_cursor_absolute_position()
         if page_index is None:
             return None
 
@@ -1657,7 +1661,9 @@ class PdfViewerWidget(QWidget):
         current_link = None
 
         for link in page.get_links():
-            if fitz.Point(ex, ey) in link["from"]:
+            rect = link["from"]
+            x0, y0, x1, y1 = rect
+            if ex >= x0 and ex <= x1 and ey >= y0 and ey <= y1:
                 is_hover_link = True
                 current_link = link
                 break
@@ -1813,10 +1819,13 @@ class PdfViewerWidget(QWidget):
 
         if event.type() == QEvent.Type.MouseMove:
             if not self.is_rect_annot_mode:
+                ex, ey, page_index = self.get_cursor_absolute_position()
                 if self.hasMouseTracking():
-                    self.check_annot() or self.hover_link() or self.check_selectable()
+                    self.check_annot((ex, ey, page_index)) \
+                        or self.hover_link((ex, ey, page_index)) \
+                            or self.check_selectable((ex, ey, page_index))
                 else:
-                    self.handle_select_mode()
+                    self.handle_select_mode((ex, ey, page_index))
 
         elif event.type() == QEvent.Type.MouseButtonPress:
             # add this detect release mouse event
@@ -1991,8 +2000,8 @@ class PdfViewerWidget(QWidget):
             self.move_text_annot_pos = (fitz.Point(ex, ey), page_index)
             self.move_annot_text()
 
-    def check_selectable(self):
-        ex, ey, page_index = self.get_cursor_absolute_position()
+    def check_selectable(self, xy_page=None):
+        ex, ey, page_index = xy_page if xy_page else self.get_cursor_absolute_position()
         if page_index is None:
             return None, None
         rect_index = self.document[page_index].is_char_at_point(ex, ey)
@@ -2002,9 +2011,9 @@ class PdfViewerWidget(QWidget):
         QApplication.setOverrideCursor(Qt.CursorShape.ArrowCursor)
         return False
     
-    def handle_select_mode(self):
+    def handle_select_mode(self, xy_page=None):
         self.is_select_mode = True
-        ex, ey, page_index = self.get_cursor_absolute_position()
+        ex, ey, page_index = xy_page if xy_page else self.get_cursor_absolute_position()
         if page_index is None:
             return
         rect_index = self.document[page_index].get_page_obj_rect_index(ex, ey)
@@ -2014,6 +2023,14 @@ class PdfViewerWidget(QWidget):
             else:
                 self.last_char_rect_index, self.last_char_page_index = rect_index, page_index
                 self.update()
+                
+    def get_select(self):
+        if self.is_select_mode:
+            content = self.parse_select_obj_list()
+            self.cleanup_select()
+            return content
+        else:
+            return ""
 
     def handle_click_link(self, external_browser=False):
         event_link = self.get_event_link()

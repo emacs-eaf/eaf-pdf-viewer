@@ -386,19 +386,14 @@ class AppBuffer(Buffer):
             self.edit_annot_text()
 
     def copy_select(self):
-        if self.buffer_widget.is_select_mode:
-            content = self.buffer_widget.parse_select_obj_list()
+        content = self.buffer_widget.get_select()
+        if content:
             eval_in_emacs('kill-new', [content])
             message_to_emacs(content)
-            self.buffer_widget.cleanup_select()
+            # message_to_emacs(f"Copied: {content[:20]}...{content[-20:]}") # maybe customize
 
     def get_select(self):
-        if self.buffer_widget.is_select_mode:
-            content = self.buffer_widget.parse_select_obj_list()
-            self.buffer_widget.cleanup_select()
-            return content
-        else:
-            return ""
+        return self.buffer_widget.get_select()
 
     def page_total_number(self):
         return str(self.buffer_widget.page_total_number)
