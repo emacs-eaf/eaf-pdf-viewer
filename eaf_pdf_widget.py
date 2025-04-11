@@ -1316,7 +1316,7 @@ class PdfViewerWidget(QWidget):
 
     def parse_select_obj_list(self):
         string = ""
-        page_dict = self.get_select_char_list()
+        page_dict = self.get_select_obj_list()
         for index, obj_list in enumerate(page_dict.values()):
             if obj_list:
                 string += self.document[index].parse_obj_list(obj_list)
