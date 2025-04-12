@@ -502,6 +502,7 @@ class PdfPage(fitz.Page):
         for annot in annots:
             self.page.delete_annot(annot)
         self._mark_search_annot_list.clear()
+        self._annots = None
 
     def mark_jump_link_tips(self, letters):
         fontsize, = get_emacs_vars(["eaf-pdf-marker-fontsize"])
