@@ -389,8 +389,6 @@ class AppBuffer(Buffer):
         content = self.buffer_widget.get_select()
         if content:
             eval_in_emacs('kill-new', [content])
-            message_to_emacs(content)
-            # message_to_emacs(f"Copied: {content[:20]}...{content[-20:]}") # maybe customize
 
     def get_select(self):
         return self.buffer_widget.get_select()

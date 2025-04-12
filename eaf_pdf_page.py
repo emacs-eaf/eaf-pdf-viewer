@@ -285,31 +285,36 @@ class PdfPage(fitz.Page):
         """
         obj_list is a list of objects in the page rawdict.
         """
-        chars = []
+        def _parse_span(span):
+            res = []
+            for char in span["chars"]:
+                res.append(char["c"])
+            return "".join(res)
+        
         def _parse_line(line):
             res = []
             for span in line["spans"]:
-                if "chars" in span:
-                    res.extend([x["c"] for x in span["chars"]])
-            return res
+                res.append(_parse_span(span))
+            return "\n" + "".join(res) + "\n"
         
         def _parse_block(block):
             res = []
             for line in block["lines"]:
-                res.extend(_parse_line(line))
-            return res
-                    
+                res.append(_parse_line(line))
+            return "".join(res)
+        
+        segments = []
         for obj in obj_list:
             if "c" in obj:
-                chars.append(obj["c"])
+                segments.append(obj["c"])
             elif "chars" in obj:
-                chars.extend([x["c"] for x in obj["chars"]])
+                segments.append(_parse_span(obj))
             elif "spans" in obj:
-                chars.extend(_parse_line(obj))
+                segments.append(_parse_line(obj))
             elif "lines" in obj:
-                chars.extend(_parse_block(obj))
-                
-        return "".join(chars)
+                segments.append(_parse_block(obj))
+    
+        return "".join(segments).replace("\n\n", "\n").strip("\n")
         
 
     def set_rotation(self, rotation):
