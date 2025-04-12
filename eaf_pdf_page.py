@@ -20,6 +20,7 @@
 
 
 import fitz
+fitz.TOOLS.unset_quad_corrections(True)
 from core.utils import get_emacs_vars
 from eaf_pdf_utils import generate_random_key, support_hit_max
 from PyQt6.QtCore import QRect, QRectF
@@ -79,16 +80,15 @@ class PdfPage(fitz.Page):
         self._mark_link_annot_list = []
         self._mark_search_annot_list = []
         self._mark_jump_annot_list = []
-        self._links = self.page.get_links()
-        self._annots = self.page.annots()
+        self._links = None
+        self._annots = None
 
         self._page_rawdict = self._init_page_rawdict()
         # self._page_char_rect_list = self._init_page_char_rect_list()
         self._tight_margin_rect = self._init_tight_margin()
         
         self.hierarchy = ["", "blocks", "lines", "spans", "chars"]
-
-        self.has_annot = page.first_annot
+        
         self.hovered_annot = None
 
     def __getattr__(self, attr):
@@ -101,12 +101,12 @@ class PdfPage(fitz.Page):
                 # the rawdict bbox coordinate is wrong
                 # cause the select text failed
                 set_page_crop_box(self.page)(self.clip)
-                d = get_page_text(self.page)("rawdict")
+                d = get_page_text(self.page)("rawdict", flags=fitz.TEXT_ACCURATE_BBOXES)
                 return d
             except:
-                return get_page_text(self.page)("rawdict")
+                return get_page_text(self.page)("rawdict", flags=fitz.TEXT_ACCURATE_BBOXES)
         else:
-            return get_page_text(self.page)("rawdict")
+            return get_page_text(self.page)("rawdict", flags=fitz.TEXT_ACCURATE_BBOXES)
 
     def _init_page_char_rect_list(self):
         '''Collection page char rect list when page init'''
@@ -129,24 +129,22 @@ class PdfPage(fitz.Page):
         return chars_list
 
     def _init_tight_margin(self):
-        r = None
+        xx0, yy0, xx1, yy1 = self.page.cropbox
         for block in self._page_rawdict["blocks"]:
             # ignore image bbox
             if block["type"] != 0:
                 continue
 
             x0, y0, x1, y1 = block["bbox"]
-            if r is None:
-                r = fitz.Rect(x0, y0, x1, y1)
-                continue
-            x0 = min(x0, r.x0)
-            y0 = min(y0, r.y0)
-            x1 = max(x1, r.x1)
-            y1 = max(y1, r.y1)
-            r = fitz.Rect(x0, y0, x1, y1)
-        if r is None:
-            return self.page.cropbox
-        return r
+            if x0 < xx0:
+                xx0 = x0
+            if y0 < yy0:
+                yy0 = y0
+            if x1 > xx1:
+                xx1 = x1
+            if y1 > yy1:
+                yy1 = y1
+        return fitz.Rect(xx0, yy0, xx1, yy1)
 
     def get_tight_margin_rect(self):
         # if current page don't computer tight rect
@@ -348,7 +346,7 @@ class PdfPage(fitz.Page):
         img = QImage(pixmap.samples, pixmap.width, pixmap.height, pixmap.stride, QImage.Format.Format_RGBA8888)
         qpixmap = QPixmap.fromImage(img)
 
-        if self.has_annot:
+        if self.get_annots():
             qpixmap = self.draw_annots(qpixmap, scale)
 
         return qpixmap
@@ -386,10 +384,10 @@ class PdfPage(fitz.Page):
         return pixmap
 
     def can_update_annot(self, ex, ey):
-        if not self.has_annot:
+        if not self.get_annots():
             return None, False
 
-        for annot in self._annots:
+        for annot in self.get_annots():
             x0, y0, x1, y1 = annot.rect
             if ex >= x0 and ex <= x1 and ey >= y0 and ey <= y1:
                 self.hovered_annot = annot
@@ -524,7 +522,14 @@ class PdfPage(fitz.Page):
         self._mark_jump_annot_list = []
 
     def get_links(self):
+        if self._links is None:
+            self._links = self.page.get_links()
         return self._links
+    
+    def get_annots(self):
+        if self._annots is None:
+            self._annots = list(self.page.annots())
+        return self._annots
     
     def _is_intersects(self, rect1, rect2):
         x0, y0, x1, y1 = rect1
