@@ -182,7 +182,6 @@ class PdfViewerWidget(QWidget):
 
         # Padding between pages.
         self.page_padding = 10
-        self.padding_color = QColor("#333333") #self.get_render_background_color()
 
         # Inverted mode.
         self.inverted_mode = False
@@ -232,7 +231,7 @@ class PdfViewerWidget(QWidget):
 
     def fill_background(self):
         pal = self.palette()
-        pal.setColor(QPalette.ColorRole.Window, QColor(self.get_render_background_color()))
+        pal.setColor(QPalette.ColorRole.Window, self.background_color)
         self.setAutoFillBackground(True)
         self.setPalette(pal)
 
@@ -571,9 +570,10 @@ class PdfViewerWidget(QWidget):
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
         painter.save()
         
-        # for padding
-        painter.setBrush(self.padding_color)
-        painter.setPen(Qt.PenStyle.NoPen)
+        # for background
+        color = QColor(self.get_render_background_color())
+        painter.setBrush(color)
+        painter.setPen(color)
 
         # Draw page.
         if self.read_mode == "fit_to_presentation":
@@ -664,14 +664,9 @@ class PdfViewerWidget(QWidget):
             # limit the visiable area size
             page_render_x = max(min(page_render_x + self.horizontal_offset, 0), self.rect().width() - self.page_render_width)
 
-        # Draw page.
-        x, y, w, h = int(page_render_x), 0, int(self.page_render_width), int(self.page_render_height)
-        rect = QRect(x, y, w, h)
+        rect = QRect(int(page_render_x), 0, int(self.page_render_width), int(self.page_render_height))
+        painter.drawRect(rect)
         painter.drawPixmap(rect, qpixmap)
-        
-        # Draw page padding.
-        padding_rec = QRect(x, y+h, w, int(self.page_padding))
-        painter.drawRect(padding_rec)
         self.draw_page_extra(painter, index, page_render_x)
         return self.page_render_height + self.page_padding
         
@@ -1319,14 +1314,12 @@ class PdfViewerWidget(QWidget):
         return string
 
     def parse_select_obj_list(self):
-        string = ""
+        strings = []
         page_dict = self.get_select_obj_list()
         for index, obj_list in enumerate(page_dict.values()):
             if obj_list:
-                string += self.document[index].parse_obj_list(obj_list)
-                if index != 0:
-                    string += "\n\n"    # add new line on page end.
-        return string
+                strings.append(self.document[index].parse_obj_list(obj_list))
+        return "".join(strings)
 
     def record_new_annot_action(self, annot_action):
         num_action_removed = len(self.annot_action_sequence) - (self.annot_action_index + 1)
