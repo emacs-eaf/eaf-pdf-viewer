@@ -1468,7 +1468,7 @@ class PdfViewerWidget(QWidget):
             
     def update_select_obj_area(self):
         page_dict = self.get_select_obj_list()
-        rectify = lambda x0, y0, x1, y1: fitz.Rect(x0-2, y0-1, x1+2, y1+1)
+        rectify = lambda x0, y0, x1, y1: fitz.Rect(x0-1, y0-1, x1+1, y1+1)
         for page_index, chars_list in page_dict.items():         
             rect_list = []
             if not chars_list:
@@ -1478,7 +1478,8 @@ class PdfViewerWidget(QWidget):
             line_x0, line_y0, line_x1, line_y1 = chars_list[0]["bbox"]
             for obj in chars_list:
                 x0, y0, x1, y1 = obj["bbox"]
-                if abs((y0+y1) / 2 - (line_y0 + line_y1)/2) < 3:
+                if abs(y0-line_y0) < 3 or abs(y1-line_y1) < 3 or \
+                    abs((y0+y1) / 2 - (line_y0 + line_y1)/2) < 3:
                     # The same line
                     line_x0 = min(line_x0, x0)
                     line_y0 = min(line_y0, y0)
@@ -1524,12 +1525,10 @@ class PdfViewerWidget(QWidget):
 
         qp = QPainter(pixmap)
         qp.setRenderHint(QPainter.RenderHint.Antialiasing)
-        qp.setBrush(QBrush(QColor(self.text_highlight_annot_color)))
+        color = QColor(252, 240, 3, 60) if self.get_inverted_mode() else QColor(11, 120, 250, 60)
+        qp.setBrush(color)
         qp.setPen(Qt.PenStyle.NoPen)
-        if self.pdf_dark_mode:
-            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
-        else:
-            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationAtop)
+        qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         # update select area quad list
         self.update_select_obj_area()
@@ -1672,11 +1671,6 @@ class PdfViewerWidget(QWidget):
         if (is_hover_link != self.is_hover_link or
             (current_link is not None and current_link != self.last_hover_link)):
 
-            if is_hover_link:
-                QApplication.setOverrideCursor(Qt.CursorShape.PointingHandCursor)
-            else:
-                QApplication.setOverrideCursor(Qt.CursorShape.ArrowCursor)
-
             if current_link:
                 self.last_hover_link = current_link
                 if current_link != self.last_hover_link or not QToolTip.isVisible():
@@ -1818,14 +1812,17 @@ class PdfViewerWidget(QWidget):
             self.is_button_press = False
 
         if event.type() == QEvent.Type.MouseMove:
+            shape = Qt.CursorShape.ArrowCursor
+            ex, ey, page_index = self.get_cursor_absolute_position()
+            if self.check_selectable((ex, ey, page_index)):
+                shape = Qt.CursorShape.IBeamCursor
             if not self.is_rect_annot_mode:
-                ex, ey, page_index = self.get_cursor_absolute_position()
                 if self.hasMouseTracking():
-                    self.check_annot((ex, ey, page_index)) \
-                        or self.hover_link((ex, ey, page_index)) \
-                            or self.check_selectable((ex, ey, page_index))
+                    if self.check_annot((ex, ey, page_index)) or self.hover_link((ex, ey, page_index)):
+                        shape = Qt.CursorShape.PointingHandCursor
                 else:
                     self.handle_select_mode((ex, ey, page_index))
+            QApplication.setOverrideCursor(shape)
 
         elif event.type() == QEvent.Type.MouseButtonPress:
             # add this detect release mouse event
@@ -1838,8 +1835,7 @@ class PdfViewerWidget(QWidget):
                     content = self.parse_select_obj_list()
                     eval_in_emacs('kill-new', [content])
                     message_to_emacs(content)
-                self.cleanup_select()
-                
+                self.cleanup_select()   
 
             if self.is_popup_text_annot_mode:
                 if event.button() != Qt.MouseButton.LeftButton:
@@ -2003,13 +1999,9 @@ class PdfViewerWidget(QWidget):
     def check_selectable(self, xy_page=None):
         ex, ey, page_index = xy_page if xy_page else self.get_cursor_absolute_position()
         if page_index is None:
-            return None, None
+            return False
         rect_index = self.document[page_index].is_char_at_point(ex, ey)
-        if rect_index:
-            QApplication.setOverrideCursor(Qt.CursorShape.IBeamCursor)
-            return True
-        QApplication.setOverrideCursor(Qt.CursorShape.ArrowCursor)
-        return False
+        return rect_index is not None
     
     def handle_select_mode(self, xy_page=None):
         self.is_select_mode = True
