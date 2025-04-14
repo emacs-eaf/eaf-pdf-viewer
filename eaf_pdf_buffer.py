@@ -228,7 +228,7 @@ class AppBuffer(Buffer):
             self.buffer_widget.mark_position()
             self.buffer_widget.jump_to_percent(int(result_content))
         elif callback_tag == "jump_link":
-            self.buffer_widget.buffer_widget.jump_to_link(str(result_content))
+            self.buffer_widget.jump_to_link(str(result_content))
         elif callback_tag == "search_text":
             self.search_adapter.search_text(str(result_content))
 
