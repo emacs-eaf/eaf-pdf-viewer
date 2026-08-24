@@ -238,6 +238,47 @@ class PdfPage(fitz.Page):
     def get_page_obj_rect_index(self, x, y):
         '''According X and Y coordinate return index of char in raw_dict.'''
         return self.is_char_at_point(x, y)
+
+    def get_word_range_at_point(self, x, y):
+        '''Return raw-dict character bounds for the word under X and Y.'''
+        if x is None or y is None:
+            return None
+
+        # Small tolerance around the click point so a click exactly on a word
+        # border still hits, but prefer the NEAREST word (bbox center) instead
+        # of the first word in document order whose bbox merely intersects:
+        # clicking between two words must select the one visually under cursor.
+        tolerance = 2.0
+        words = self.page.get_text_words()
+        best = None
+        best_dist = None
+        for word in words:
+            word_rect = fitz.Rect(word[:4])
+            if not word_rect.intersects(fitz.Rect(x - tolerance, y - tolerance,
+                                                  x + tolerance, y + tolerance)):
+                continue
+            center_x = (word_rect.x0 + word_rect.x1) / 2
+            center_y = (word_rect.y0 + word_rect.y1) / 2
+            dist = (x - center_x) ** 2 + (y - center_y) ** 2
+            if best_dist is None or dist < best_dist:
+                best_dist = dist
+                best = word
+        if best is None:
+            return None
+
+        word_rect = fitz.Rect(best[:4])
+        char_indices = []
+        for block_index, block in enumerate(self._page_rawdict["blocks"]):
+            for line_index, line in enumerate(block.get("lines", [])):
+                for span_index, span in enumerate(line.get("spans", [])):
+                    for char_index, char in enumerate(span.get("chars", [])):
+                        if fitz.Rect(char["bbox"]).intersects(word_rect):
+                            char_indices.append(
+                                (block_index, line_index, span_index, char_index))
+
+        if not char_indices:
+            return None
+        return min(char_indices), max(char_indices), best[4]
        
     
     def get_obj_from_range(self, start, end):

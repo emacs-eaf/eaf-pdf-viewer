@@ -20,6 +20,8 @@
 
 
 import math
+import os
+import platform
 import time
 import webbrowser
 
@@ -133,6 +135,18 @@ class PdfViewerWidget(QWidget):
         self.last_char_rect_index = None
         self.last_char_page_index = None
         self.select_area_annot_quad_cache_dict = {}
+        self.is_word_select_drag = False
+        self.word_select_anchor = None
+        # macOS: Qt cannot synthesize MouseButtonDblClick reliably here because the
+        # core View focus round-trip reparents the QWindow (~450ms) between the two
+        # physical presses, exceeding Qt's double-click interval. Detect the double
+        # click manually from consecutive MouseButtonPress events instead.
+        self.last_left_press_ms = 0
+        self.last_left_press_pos = None
+        self.manual_dblclick_interval_ms = 1500
+        self.manual_dblclick_move_tolerance = 20
+        self._mac_dbl_started_ts = 0.0
+        self._mac_press_xy_page = None
 
         # text annot
         self.is_hover_annot = False
@@ -1414,6 +1428,8 @@ class PdfViewerWidget(QWidget):
 
     def cleanup_select(self):
         self.is_select_mode = False
+        self.is_word_select_drag = False
+        self.word_select_anchor = None
         self.delete_all_mark_select_area()
         self.page_cache_pixmap_dict.clear()
         self.update()
@@ -1741,8 +1757,8 @@ class PdfViewerWidget(QWidget):
             self.horizontal_offset = new_offset
             self.update()
 
-    def get_cursor_absolute_position(self):
-        pos = self.mapFromGlobal(QCursor.pos()) # map global coordinate to widget coordinate.
+    def get_cursor_absolute_position(self, screen_pos=None):
+        pos = self.mapFromGlobal(screen_pos if screen_pos is not None else QCursor.pos()) # map global coordinate to widget coordinate.
         ex, ey = pos.x(), pos.y()
         # set page coordinate
         render_width = self.page_width * self.scale
@@ -1789,14 +1805,9 @@ class PdfViewerWidget(QWidget):
         if page_index is None:
             return None
         page = self.document[page_index]
-        word_offset = 10 # 10 pixel is enough for word intersect operation
-        draw_rect = fitz.Rect(ex, ey, ex + word_offset, ey + word_offset)
-
-        page.set_cropbox(page.rect)
-        page_words = page.get_text_words()
-        rect_words = [w for w in page_words if fitz.Rect(w[:4]).intersects(draw_rect)]
-        if rect_words:
-            return rect_words[0][4]
+        word_range = page.get_word_range_at_point(ex, ey)
+        if word_range:
+            return word_range[2]
 
     def eventFilter(self, obj, event):
         if event.type() in [QEvent.Type.MouseButtonPress]:
@@ -1814,7 +1825,20 @@ class PdfViewerWidget(QWidget):
                     if self.check_annot((ex, ey, page_index)) or self.hover_link((ex, ey, page_index)):
                         shape = Qt.CursorShape.PointingHandCursor
                 else:
-                    self.handle_select_mode((ex, ey, page_index))
+                    if self.is_word_select_drag:
+                        self.handle_word_select_drag((ex, ey, page_index))
+                    elif platform.system() == "Darwin":
+                        # macOS: single-press drag selects by WORD too, unified
+                        # with double-click-drag (and with the case where the
+                        # second press of a double-click is dropped by the OS -
+                        # the held press then still selects by word). Anchor at
+                        # the press position recorded in the press handler.
+                        if self.start_word_select_drag(getattr(self, "_mac_press_xy_page", None)):
+                            self.handle_word_select_drag((ex, ey, page_index))
+                        else:
+                            self.handle_select_mode((ex, ey, page_index))
+                    else:
+                        self.handle_select_mode((ex, ey, page_index))
             QApplication.setOverrideCursor(shape)
 
         elif event.type() == QEvent.Type.MouseButtonPress:
@@ -1847,6 +1871,36 @@ class PdfViewerWidget(QWidget):
             else:
                 modifiers = QApplication.keyboardModifiers()
                 if event.button() == Qt.MouseButton.LeftButton:
+                    # macOS: detect double-click manually from consecutive presses,
+                    # because the core View focus round-trip reparents the QWindow
+                    # between the two physical presses and Qt never delivers a
+                    # MouseButtonDblClick here. On detection, start word selection.
+                    if platform.system() == "Darwin" and not self.is_hover_link:
+                        now_ms = int(time.time() * 1000)
+                        gpos = QCursor.pos()
+                        prev_ms = self.last_left_press_ms
+                        prev_pos = self.last_left_press_pos
+                        is_dbl = (
+                            prev_pos is not None and
+                            (now_ms - prev_ms) <= self.manual_dblclick_interval_ms and
+                            abs(gpos.x() - prev_pos[0]) <= self.manual_dblclick_move_tolerance and
+                            abs(gpos.y() - prev_pos[1]) <= self.manual_dblclick_move_tolerance)
+                        self.last_left_press_ms = now_ms
+                        self.last_left_press_pos = (gpos.x(), gpos.y())
+                        if is_dbl:
+                            # Resolve the anchor word from the FIRST press
+                            # position: on a trackpad the second press of a
+                            # double-click often drifts a few px into the gap
+                            # between words, and resolving from the second
+                            # press can anchor the selection on the WRONG word.
+                            # Keep last_left_press_pos so a Qt-synthesized
+                            # MouseButtonDblClick right after uses the same
+                            # anchor; the DblClick branch clears it.
+                            prev_screen = QPoint(prev_pos[0], prev_pos[1])
+                            anchor_xy_page = self.get_cursor_absolute_position(prev_screen)
+                            self._mac_dbl_started_ts = time.time()
+                            if self.start_word_select_drag(anchor_xy_page):
+                                return True
                     # In order to catch mouse move event when drap mouse.
                     if self.is_hover_link:
                         if modifiers == Qt.KeyboardModifier.ControlModifier:
@@ -1854,6 +1908,10 @@ class PdfViewerWidget(QWidget):
                         else:
                             self.handle_click_link(False)
                     else:
+                        if platform.system() == "Darwin":
+                            # Record the press anchor so a following drag
+                            # selects by word (unified word-level selection).
+                            self._mac_press_xy_page = self.get_cursor_absolute_position()
                         self.setMouseTracking(False)
                 elif event.button() == Qt.MouseButton.RightButton:
                     self.handle_click_link(True)
@@ -1868,6 +1926,7 @@ class PdfViewerWidget(QWidget):
             # Capture move event, event without holding down the mouse.
             self.setMouseTracking(True)
             self.releaseMouse()
+            self.finish_word_select_drag()
 
             if self.is_rect_annot_mode:
                 self.handle_rect_annot_mode(False)
@@ -1884,17 +1943,31 @@ class PdfViewerWidget(QWidget):
                self.is_move_text_annot_handler_waiting:
                 self.move_text_annot_timer.start()
 
-            import platform
-            if platform.system() == "Darwin":
-                eval_in_emacs('eaf-activate-emacs-window', [])
-
         elif event.type() == QEvent.Type.MouseButtonDblClick:
             self.disable_popup_text_annot_mode()
             self.disable_inline_text_annot_mode()
             if event.button() == Qt.MouseButton.RightButton and self.document.is_pdf:
                 self.handle_translate_word()
             elif event.button() == Qt.MouseButton.LeftButton:
-                self.handle_synctex_backward_edit()
+                # macOS may synthesize MouseButtonDblClick for fast
+                # double-clicks now that the focus ping-pong is gone. Use
+                # the FIRST press position as the anchor (same as the
+                # manual path); the DblClick event's own cursor position
+                # is the second press, which drifts into word gaps on
+                # trackpads. Skip when the manual path already started
+                # word selection for this same double-click.
+                if platform.system() == "Darwin":
+                    if time.time() - getattr(self, "_mac_dbl_started_ts", 0.0) < 0.5:
+                        pass
+                    elif getattr(self, "last_left_press_pos", None) is not None:
+                        prev_screen = QPoint(*self.last_left_press_pos)
+                        anchor_xy_page = self.get_cursor_absolute_position(prev_screen)
+                        self.last_left_press_pos = None
+                        self.start_word_select_drag(anchor_xy_page)
+                    else:
+                        self.start_word_select_drag()
+                else:
+                    self.handle_synctex_backward_edit()
                 return True
 
         return False
@@ -2008,6 +2081,58 @@ class PdfViewerWidget(QWidget):
             else:
                 self.last_char_rect_index, self.last_char_page_index = rect_index, page_index
                 self.update()
+
+    def start_word_select_drag(self, xy_page=None):
+        ex, ey, page_index = xy_page if xy_page else self.get_cursor_absolute_position()
+        if page_index is None:
+            return False
+
+        word_range = self.document[page_index].get_word_range_at_point(ex, ey)
+        if not word_range:
+            return False
+
+        word_start, word_end, _word = word_range
+        self.is_button_press = True
+        self.is_select_mode = True
+        self.is_word_select_drag = True
+        self.word_select_anchor = (word_start, word_end, page_index)
+        self.start_char_rect_index = word_start
+        self.start_char_page_index = page_index
+        self.last_char_rect_index = word_end
+        self.last_char_page_index = page_index
+        self.grabMouse()
+        self.setMouseTracking(False)
+        self.update()
+        return True
+
+    def handle_word_select_drag(self, xy_page=None):
+        if not self.word_select_anchor:
+            return
+
+        ex, ey, page_index = xy_page if xy_page else self.get_cursor_absolute_position()
+        if page_index is None:
+            return
+
+        word_range = self.document[page_index].get_word_range_at_point(ex, ey)
+        if not word_range:
+            return
+
+        word_start, word_end, _word = word_range
+        anchor_start, anchor_end, anchor_page = self.word_select_anchor
+        if (page_index, word_start) < (anchor_page, anchor_start):
+            self.start_char_rect_index = anchor_end
+            self.start_char_page_index = anchor_page
+            self.last_char_rect_index = word_start
+        else:
+            self.start_char_rect_index = anchor_start
+            self.start_char_page_index = anchor_page
+            self.last_char_rect_index = word_end
+        self.last_char_page_index = page_index
+        self.update()
+
+    def finish_word_select_drag(self):
+        self.is_word_select_drag = False
+        self.word_select_anchor = None
                 
     def get_select(self):
         if self.is_select_mode:
