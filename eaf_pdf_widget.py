@@ -42,6 +42,13 @@ class PdfViewerWidget(QWidget):
 
     translate_double_click_word = pyqtSignal(str)
 
+    @staticmethod
+    def _activate_emacs_after_mouse_release():
+        tracker = getattr(
+            QApplication.instance(), "macos_window_tracker", None)
+        if tracker is not None:
+            tracker.activate_emacs_after_mouse_release()
+
     def __init__(self, url, background_color, buffer, buffer_id, synctex_info):
         super(PdfViewerWidget, self).__init__()
 
@@ -1942,6 +1949,13 @@ class PdfViewerWidget(QWidget):
             if not self.move_text_annot_timer.isActive() and \
                self.is_move_text_annot_handler_waiting:
                 self.move_text_annot_timer.start()
+
+            if platform.system() == "Darwin":
+                # Finish the native drag or selection before returning focus.
+                # The tracker activates the existing Emacs process by PID.
+                QTimer.singleShot(
+                    50,
+                    self._activate_emacs_after_mouse_release)
 
         elif event.type() == QEvent.Type.MouseButtonDblClick:
             self.disable_popup_text_annot_mode()
